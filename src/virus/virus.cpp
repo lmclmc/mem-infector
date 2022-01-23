@@ -1,12 +1,24 @@
 #include "infector/infector.h"
 #include "infector/targetopt.h"
+#include "infector/cmdline.h"
 #include <elf.h>
 #include <dlfcn.h>
 #include <sys/mman.h>
 #include <string.h>
+
 int main(int argc, char *argv[])
 {
-    if (argc < 3) return 0;
+    cmdline::parser cmd;
+    cmd.add<int>("pid", 'p', "set target pid", true, 0, cmdline::range(1, 65535));
+    cmd.add<std::string>("symtab", 's', "print symtab", false, "malloc", cmdline::oneof<std::string>("malloc", 
+    "printf", "pause", "__libc_dlopen_mode", "perror" , "strerror"));
+    cmd.add<std::string>("libso", 'l', "set libso name", false, "");
+
+    cmd.parse_check(argc, argv);
+printf("1111111111111\n");
+std::cout << cmd.get<std::string>("symtab") << std::endl;
+
+    if (1) return 0;
 
     int pid = ::atoi(argv[1]);
     char *injectso = argv[2];
