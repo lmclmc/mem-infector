@@ -9,19 +9,13 @@
 int main(int argc, char *argv[])
 {
     cmdline::parser cmd;
-    cmd.add<int>("pid", 'p', "set target pid", true, 0, cmdline::range(1, 65535));
-    cmd.add<std::string>("symtab", 's', "print symtab", false, "malloc", cmdline::oneof<std::string>("malloc", 
-    "printf", "pause", "__libc_dlopen_mode", "perror" , "strerror"));
+    cmd.add<int>("pid", 'p', "set target pid", true, 0, cmdline::range(1, 1000000));
     cmd.add<std::string>("libso", 'l', "set libso name", false, "");
 
     cmd.parse_check(argc, argv);
-printf("1111111111111\n");
-std::cout << cmd.get<std::string>("symtab") << std::endl;
 
-    if (1) return 0;
-
-    int pid = ::atoi(argv[1]);
-    char *injectso = argv[2];
+    int pid = cmd.get<int>("pid");
+    const char *injectso = cmd.get<std::string>("libso").c_str();
     printf("%s\n", injectso);
     Infector infector(pid);
      printf("=== %s, %d\n", __func__, __LINE__);
@@ -58,8 +52,12 @@ std::cout << cmd.get<std::string>("symtab") << std::endl;
         printf("=== %s, %d\n", __func__, __LINE__);
         return 0;
     }
-    Elf64_Addr setAcceptAddr = infector.getSym("libinject.so", "setAcceptAddr");
-    Elf64_Addr injectAcceptAddr = infector.getSym("libinject.so", "injectAccept");
+    Elf64_Addr setAcceptAddr = infector.getSym("libinject.so", "_Z13setAcceptAddrl");
+    Elf64_Addr injectAcceptAddr = infector.getSym("libinject.so", "_Z12injectAcceptiP8sockaddrPj");
+                                                                   
+                                                              //     _Z7tAcceptiP8sockaddrPj
+    printf("setAcceptAddr = %p\n", setAcceptAddr);
+    printf("injectAcceptAddr = %p\n", injectAcceptAddr);
     retAddr = infector.callRemoteFunc(mmapAddr, 0, 4096, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
    infector.remoteFuncJump(acceptAddr, injectAcceptAddr, retAddr, setAcceptAddr);

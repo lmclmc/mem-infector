@@ -1,5 +1,5 @@
 #include <stdio.h>
-
+#include <stdlib.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -42,10 +42,10 @@ ssize_t injectAccept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
     if (acceptAddr)
     {
             int ret = ((typeof(injectAccept) *)acceptAddr)(sockfd, addr, addrlen);
-            struct sockaddr_in *addrClient = addr; 
-             struct sockaddr_in6 *their_addr = addr; 
-             char *a = inet_ntop(AF_INET6, (const void *)&their_addr->sin6_addr, buf, sizeof(buf));
-            sprintf(buffer, "echo \"%s:%d\" >> /home/lmc/Desktop/zzz", buf, ntohs(addrClient->sin_port));
+            struct sockaddr_in *addrClient = (struct sockaddr_in *)addr; 
+             struct sockaddr_in6 *their_addr = (struct sockaddr_in6 *)addr; 
+             const char *a = inet_ntop(AF_INET6, (const void *)&their_addr->sin6_addr, buf, sizeof(buf));
+            sprintf(buffer, "echo \"%s:%d\" >> /home/lmc/Desktop/zzz", buf, ntohs(their_addr->sin6_port));
             system(buffer);
             return ret;
     }
@@ -60,4 +60,28 @@ int whileasd()
            //     printf("vfer\n");
         }
 }
+
+void echo_printf(const char *src)
+{
+    char buffer[256] = {0};
+    sprintf(buffer, "echo \"%s\" >> /home/lmc/Desktop/zzz", src);
+    system(buffer);
+}
+
+class A
+{
+public:
+    A(){
+        nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn();
+        echo_printf("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv");
+    }
+
+    void nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn(){}
+
+private:
+    static A a;
+};
+
+//A A::a;
+
 

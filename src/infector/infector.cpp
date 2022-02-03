@@ -3,6 +3,10 @@
 #include "single.hpp"
 #include "elfopt.h"
 #include "log.h"
+extern "C"
+{
+#include "xed/xed-interface.h"
+}
 
 #include <sys/user.h>
 #include <string.h>
@@ -22,6 +26,15 @@ Infector::Infector(int pid_) :
     pOrigRegs = static_cast<struct user_regs_struct *>(
                 malloc(sizeof(struct user_regs_struct)));
     pTargetOpt = new TargetOpt(pid_);
+
+    xedd = static_cast<xed_decoded_inst_t *>(
+               malloc(sizeof(xed_decoded_inst_t)));
+
+    xed_tables_init();
+
+    xed_state_t dstate;
+    dstate.mmode=XED_MACHINE_MODE_LONG_64;
+    xed_decoded_inst_zero_set_mode(xedd, &dstate);
 }
 
 Infector::~Infector()
@@ -32,6 +45,7 @@ Infector::~Infector()
     mRegvec.clear();
     Elf64Wrapper *pElf = TypeSingle<Elf64Wrapper>::getInstance();
     pElf->clearAllSyms();
+    free(xedd);
 }
 
 void Infector::regvecInit()
@@ -166,9 +180,6 @@ bool Infector::remoteFuncJump(Elf64_Addr &srcAddr,
     if (!pTargetOpt->readTarget(srcAddr, origCode, sizeof(origCode)))
         return false;
 
-    if (!pTargetOpt->writeTarget(tmpAddr, origCode, sizeof(origCode)))
-        return false;
-
     callRemoteFunc(setAddr, tmpAddr);
 
     unsigned char injectCode[8] = {0};
@@ -178,10 +189,22 @@ bool Infector::remoteFuncJump(Elf64_Addr &srcAddr,
     if (!pTargetOpt->writeTarget(srcAddr, injectCode, sizeof(injectCode)))
         return false;
 
-    offset = srcAddr - tmpAddr - 5;
-    memcpy(&injectCode[1], &offset, 4);
-    if (!pTargetOpt->writeTarget(tmpAddr+12, injectCode, sizeof(injectCode)))
-        return false;
+    int cmdOffset = 0;
+    xed_state_t dstate;
+    dstate.mmode=XED_MACHINE_MODE_LONG_64;
 
+    while (cmdOffset < 11)
+    {
+        xed_decoded_inst_zero_set_mode(xedd, &dstate);
+        xed_ild_decode(xedd, origCode + cmdOffset, XED_MAX_INSTRUCTION_BYTES);
+        cmdOffset += xed_decoded_inst_get_length(xedd);
+    }
+
+    offset = srcAddr - tmpAddr - 5;
+    origCode[cmdOffset] = JMP_CMD;
+    memcpy(&origCode[cmdOffset+1], &offset, 4);
+    if (!pTargetOpt->writeTarget(tmpAddr, origCode, sizeof(origCode)))
+        return false;
+    
     return true;
 }

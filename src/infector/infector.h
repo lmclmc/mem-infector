@@ -10,6 +10,8 @@
 #define MAX_ARG_NUM 7
 
 class TargetOpt;
+struct xed_decoded_inst_s;
+typedef struct xed_decoded_inst_s xed_decoded_inst_t;
 
 class Infector final
 {
@@ -81,6 +83,7 @@ private:
     struct user_regs_struct *pNewRegs;
     struct user_regs_struct *pOrigRegs;
     TargetOpt *pTargetOpt;
+    xed_decoded_inst_t *xedd;
 
     unsigned char backupCode[8] = {0};
   //  Elfopt *pElfopt;
