@@ -1,87 +1,81 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include "inject.h"
 
-static long addr = 0;
-static long acceptAddr = 0;
+Inject *gInject = nullptr;
+long Inject::syscallTable[100] = {0};
 
-int setAddr(long addr_)
+Inject::Inject()
 {
-        addr = addr_;
-        return 111;
+    gInject = this;
 }
 
-ssize_t injectRecvFrom(int sockfd, void *buf, size_t len, int flags, long a1, long a2)
+void Inject::setAcceptAddr(long addr_)
 {
-    char buffer[256] = {0};
-    if (addr)
-    {
-            int ret = ((typeof(injectRecvFrom) *)addr)(sockfd, buf, len, flags, a1, a2);
-            sprintf(buffer, "echo \"%s\" >> /home/lmc/Desktop/zzz", buf);
-            system(buffer);
-            return ret;
-    }
+    syscallTable[SystemCall::ACCEPT] = addr_;
+}
+
+ssize_t Inject::injectAccept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+{
+    long funAddr = syscallTable[SystemCall::ACCEPT];
+
+    if (gInject)
+        gInject->evilAccept(sockfd, addr, addrlen);
+ 
+    if (funAddr)
+            return ((typeof(injectAccept) *)funAddr)(sockfd, addr, addrlen);
 
     return 0;
 }
 
-int setAcceptAddr(long addr_)
+ssize_t Inject::injectRead(int fd, void *buf, size_t count)
 {
-        acceptAddr = addr_;
-         printf("wwwwwwwwwwwwwwwwwwwwww\n");
-        return 111;
+    long funAddr = syscallTable[SystemCall::READ];
+
+    if (gInject)
+        gInject->evilRead(fd, buf, count);
+
+    if (funAddr)
+        return ((typeof(injectRead) *)funAddr)(fd, buf, count);
+
+    return 0;
 }
 
-ssize_t injectAccept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+void Inject::setReadAddr(long addr_)
 {
-    char buffer[256] = {0};
-    printf("111111111112211111111111111\n");
-    char buf[64] = {0};
+    syscallTable[SystemCall::READ] = addr_;
+}
+
+ssize_t Inject::injectSend(int sockfd, const void *buf, size_t len, int flags)
+{
+    long funAddr = syscallTable[SystemCall::SEND];
+
+    if (gInject)
+        gInject->evilSend(sockfd, buf, len, flags);
+
+    if (funAddr)
+        return ((typeof(injectSend) *)funAddr)(sockfd, buf, len, flags);
+ 
+    return 0;
+}
+
+void Inject::setSendAddr(long addr_)
+{
+    syscallTable[SystemCall::SEND] = addr_;
+}
+
+ssize_t Inject::injectWrite(int fd, const void *buf, size_t count)
+{
+    long funAddr = syscallTable[SystemCall::WRITE];
+
+    if (gInject)
+        gInject->evilWrite(fd, buf, count);
     
-    if (acceptAddr)
-    {
-            int ret = ((typeof(injectAccept) *)acceptAddr)(sockfd, addr, addrlen);
-            struct sockaddr_in *addrClient = (struct sockaddr_in *)addr; 
-             struct sockaddr_in6 *their_addr = (struct sockaddr_in6 *)addr; 
-             const char *a = inet_ntop(AF_INET6, (const void *)&their_addr->sin6_addr, buf, sizeof(buf));
-            sprintf(buffer, "echo \"%s:%d\" >> /home/lmc/Desktop/zzz", buf, ntohs(their_addr->sin6_port));
-            system(buffer);
-            return ret;
-    }
+    if (funAddr)
+        return ((typeof(injectWrite) *)funAddr)(fd, buf, count);
 
     return 0;
 }
 
-int whileasd()
+void Inject::setWriteAddr(long addr_)
 {
-        while (1)
-        {
-           //     printf("vfer\n");
-        }
+    syscallTable[SystemCall::WRITE] = addr_;
 }
-
-void echo_printf(const char *src)
-{
-    char buffer[256] = {0};
-    sprintf(buffer, "echo \"%s\" >> /home/lmc/Desktop/zzz", src);
-    system(buffer);
-}
-
-class A
-{
-public:
-    A(){
-        nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn();
-        echo_printf("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv");
-    }
-
-    void nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn(){}
-
-private:
-    static A a;
-};
-
-//A A::a;
-
-

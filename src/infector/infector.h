@@ -22,13 +22,15 @@ public:
     Infector(int pid);
     ~Infector();
 
+    bool injectSysTableInit();
+
     long getSym(const std::string &, const std::string &);
     bool loadSoFile(const std::string &);
 
     bool attachTarget();
     bool detachTarget();
 
-    bool remoteFuncJump(Elf64_Addr &, Elf64_Addr &, Elf64_Addr &, Elf64_Addr &);
+    int remoteFuncJump(Elf64_Addr &, Elf64_Addr &, Elf64_Addr &, Elf64_Addr &);
 
     template<class ...Args>
     long callRemoteFunc(Args ...args)
@@ -75,6 +77,9 @@ private:
 
     bool getSoInfo(const std::string &, std::string &, Elf64_Addr &);
 
+    Elf64_Addr syscallJmp(const std::string &, const std::string &, 
+                          const std::string &, Elf64_Addr);
+
 private:
     std::vector<std::function<void(long)>> mRegvec;
     SymTabs symTabs;
@@ -86,7 +91,6 @@ private:
     xed_decoded_inst_t *xedd;
 
     unsigned char backupCode[8] = {0};
-  //  Elfopt *pElfopt;
 };
 
 #endif

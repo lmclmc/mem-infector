@@ -8,12 +8,15 @@ extern "C"
 #include "xed/xed-interface.h"
 }
 
+#include <assert.h>
 #include <sys/user.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/mman.h>
 
 #define MAX_OPCODE_SIZE 30
+#define JMP_SIZE 5
 #define CALL_RAX_CMD "\xff\xd0\xcc\x90\x90\x90\x90\x90"
 #define JMP_CMD 0xe9
 
@@ -171,29 +174,80 @@ bool Infector::writeStrToTarget(Elf64_Addr &addr, const std::string &str)
     return pTargetOpt->writeTarget(addr, (void *)str.c_str(), str.size());
 }
 
-bool Infector::remoteFuncJump(Elf64_Addr &srcAddr, 
+Elf64_Addr Infector::syscallJmp(const std::string &syscall, 
+                                const std::string &injectCall, 
+                                const std::string &setSyscall, 
+                                Elf64_Addr tmpAddr)
+{
+    Elf64_Addr syscallAddr = getSym("libc-2.31.so", syscall);
+    Elf64_Addr injectCallAddr = getSym("libinject.so", injectCall);
+    Elf64_Addr setSyscallAddr = getSym("libinject.so", setSyscall);
+
+    int offset = remoteFuncJump(syscallAddr, injectCallAddr, 
+                                tmpAddr, setSyscallAddr);
+
+    if (offset < 0) return 0;
+
+    return tmpAddr + offset;
+}
+
+bool Infector::injectSysTableInit()
+{
+    Elf64_Addr mmapAddr = getSym("libc-2.31.so", "mmap");
+
+    if (!loadSoFile("libinject.so"))
+    {
+        printf("=== %s, %d\n", __func__, __LINE__);
+        return false;
+    }
+
+    Elf64_Addr mmapRetAddr = callRemoteFunc(mmapAddr, 0, 4096, 
+                                PROT_READ | PROT_WRITE | PROT_EXEC, 
+                                MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    assert(mmapRetAddr);
+
+    mmapRetAddr = syscallJmp("accept", "_ZN6Inject12injectAcceptEiP8sockaddrPj", 
+                             "_ZN6Inject13setAcceptAddrEl", mmapRetAddr);
+    assert(mmapRetAddr);
+
+    mmapRetAddr = syscallJmp("read", "_ZN6Inject10injectReadEiPvm", 
+                             "_ZN6Inject11setReadAddrEl", mmapRetAddr);
+    assert(mmapRetAddr);
+
+    mmapRetAddr = syscallJmp("send", "_ZN6Inject10injectSendEiPKvmi", 
+                             "_ZN6Inject11setSendAddrEl", mmapRetAddr);
+    assert(mmapRetAddr);
+
+    mmapRetAddr = syscallJmp("write", "_ZN6Inject11injectWriteEiPKvm", 
+                             "_ZN6Inject12setWriteAddrEl", mmapRetAddr);
+    assert(mmapRetAddr);
+
+    return true;
+}
+
+int Infector::remoteFuncJump(Elf64_Addr &srcAddr, 
                               Elf64_Addr &dstAddr, 
                               Elf64_Addr &tmpAddr,
                               Elf64_Addr &setAddr)
 {
     unsigned char origCode[MAX_OPCODE_SIZE] = {0};
     if (!pTargetOpt->readTarget(srcAddr, origCode, sizeof(origCode)))
-        return false;
+        return -1;
 
-    callRemoteFunc(setAddr, tmpAddr);
+    callRemoteFunc(setAddr, 0, tmpAddr);
 
     unsigned char injectCode[8] = {0};
     injectCode[0] = JMP_CMD;
     int offset = dstAddr - srcAddr - 5;
     memcpy(&injectCode[1], &offset, 4);
     if (!pTargetOpt->writeTarget(srcAddr, injectCode, sizeof(injectCode)))
-        return false;
+        return -1;
 
     int cmdOffset = 0;
     xed_state_t dstate;
     dstate.mmode=XED_MACHINE_MODE_LONG_64;
 
-    while (cmdOffset < 11)
+    while (cmdOffset < 8)
     {
         xed_decoded_inst_zero_set_mode(xedd, &dstate);
         xed_ild_decode(xedd, origCode + cmdOffset, XED_MAX_INSTRUCTION_BYTES);
@@ -204,7 +258,7 @@ bool Infector::remoteFuncJump(Elf64_Addr &srcAddr,
     origCode[cmdOffset] = JMP_CMD;
     memcpy(&origCode[cmdOffset+1], &offset, 4);
     if (!pTargetOpt->writeTarget(tmpAddr, origCode, sizeof(origCode)))
-        return false;
+        return -1;
     
-    return true;
+    return cmdOffset + JMP_SIZE;
 }

@@ -94,7 +94,7 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
         section.section_size = sHdr[i].sh_size;
         section.section_ent_size = sHdr[i].sh_entsize;
         section.section_addr_align = sHdr[i].sh_addralign;
-
+        
         if (sHdr[i].sh_type < MAX_SECTIONS && 
             mSecTab[sHdr[i].sh_type] != nullptr)
         {
@@ -187,7 +187,7 @@ void Elf64DynsymSection::pushSection(uint8_t *pMmap,
         symbol.symbol_section   = sec.section_name;  
 
         if (pDynstr == nullptr) return;
-
+        
         symbol.symbol_name = std::string(pDynstr + syms_data[i].st_name);
         symTab->second.insert(std::pair<std::string, long>(symbol.symbol_name, 
                                                     baseAddr+symbol.symbol_value));

@@ -91,7 +91,7 @@ bool TargetOpt::writeTarget(unsigned long addr, const void *vptr, int len)
 
     while (count < len) 
     {
-        memcpy(&word, vptr + count, sizeof(word));
+        memcpy(&word, (const unsigned char *)vptr + count, sizeof(word));
         word = ptrace(PTRACE_POKETEXT, pid, addr + count, word);
         count += 8;
 
