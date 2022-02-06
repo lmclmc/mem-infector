@@ -7,12 +7,18 @@
 
 class EvilUser final : public Inject
 {
+public:
+    EvilUser();
+    ~EvilUser();
 
 protected:
-    ssize_t evilAccept(int sockfd, struct sockaddr *addr, socklen_t *addrlen) override;
-    ssize_t evilRead(int fd, void *buf, size_t count) override;
-    ssize_t evilSend(int sockfd, const void *buf, size_t len, int flags) override;
-    ssize_t evilWrite(int fd, const void *buf, size_t count) override;
+    ssize_t evilAccept(int, struct sockaddr *, socklen_t *) override;
+    ssize_t evilRead(int, void *&, size_t &) override;
+    ssize_t evilSend(int, const void *&, size_t &, int) override;
+    ssize_t evilWrite(int, const void *&, size_t &) override;
+
+private:
+    char *tmpBuffer;
 };
 
 EXPORT_INJECT(EvilUser)

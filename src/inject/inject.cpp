@@ -8,6 +8,9 @@ Inject::Inject()
     gInject = this;
 }
 
+Inject::~Inject()
+{}
+
 void Inject::setAcceptAddr(long addr_)
 {
     syscallTable[SystemCall::ACCEPT] = addr_;
@@ -66,11 +69,15 @@ ssize_t Inject::injectWrite(int fd, const void *buf, size_t count)
 {
     long funAddr = syscallTable[SystemCall::WRITE];
 
+    int extraCount = 0;
     if (gInject)
-        gInject->evilWrite(fd, buf, count);
-    
+        extraCount = gInject->evilWrite(fd, buf, count);
+
     if (funAddr)
-        return ((typeof(injectWrite) *)funAddr)(fd, buf, count);
+    {
+        size_t retCount = ((typeof(injectWrite) *)funAddr)(fd, buf, count);
+        return retCount - extraCount;
+    }
 
     return 0;
 }

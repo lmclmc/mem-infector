@@ -1,10 +1,16 @@
 #include "infector/infector.h"
 #include "infector/targetopt.h"
 #include "infector/cmdline.h"
+#include "infector/log.h"
+
 #include <elf.h>
 #include <dlfcn.h>
 #include <sys/mman.h>
 #include <string.h>
+
+#include <sys/types.h>
+       #include <sys/wait.h>
+
 
 int main(int argc, char *argv[])
 {
@@ -19,27 +25,30 @@ int main(int argc, char *argv[])
     Infector infector(pid);
     if (!infector.attachTarget())
     {
+        LOGGER_ERROR << "attachTarget";
         return 0;
     }
     if (!infector.loadSoFile("libc-2.31.so"))
     {
+        LOGGER_ERROR << "loadSoFile";
         return 0;
     }
     Elf64_Addr mallocAddr = infector.getSym("libc-2.31.so", "malloc");
     Elf64_Addr dlopenAddr = infector.getSym("libc-2.31.so", "__libc_dlopen_mode");
-    Elf64_Addr acceptAddr = infector.getSym("libc-2.31.so", "accept");
-    Elf64_Addr mmapAddr = infector.getSym("libc-2.31.so", "mmap");
  
     Elf64_Addr retAddr = infector.callRemoteFunc(mallocAddr, 1000);
-
+ 
     if (!infector.writeStrToTarget(retAddr, injectso))
     {
+        LOGGER_ERROR << "writeStrToTarget";
         return 0;
     }
+
     retAddr = infector.callRemoteFunc(dlopenAddr, retAddr, RTLD_NOW|RTLD_GLOBAL, 0);
 
     if (!infector.loadSoFile("libinject.so"))
     {
+        LOGGER_ERROR << "loadSoFile";
         return 0;
     }
                                                                    

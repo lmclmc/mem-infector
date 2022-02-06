@@ -247,8 +247,5 @@ long Elf64DynsymSection::getSym(const std::string &soname,
 void Elf64StrtabSection::pushSection(uint8_t *pMmap, Section &sec, Elf64_Addr)
 {
     if (sec.section_name == ".dynstr")
-    {
-        LOGGER_ERROR << "111111111111111111111";
         pDynstr = (char *)pMmap + sec.section_offset;
-    }
 }
