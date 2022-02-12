@@ -149,9 +149,18 @@ long Infector::getSym(const std::string &soname, const std::string &symname)
     Elf64Wrapper *pElf = TypeSingle<Elf64Wrapper>::getInstance();
     std::string soAllPath;
     Elf64_Addr baseAddr;
-    if (!pTargetOpt->getTargetSoInfo(soname, soAllPath, baseAddr))
-        return false;
-    return pElf->getSym(soAllPath, symname);
+
+    auto it = soMap.find(soname);
+    if (it == soMap.end())
+    {
+        if (!pTargetOpt->getTargetSoInfo(soname, soAllPath, baseAddr))
+            return false;
+
+         soMap.insert(std::pair<std::string, std::string>(soname, soAllPath));
+         it = soMap.find(soname);
+    }
+    
+    return pElf->getSym(it->second, symname);
 }
 
 bool Infector::loadSoFile(const std::string &soname)
@@ -161,6 +170,7 @@ bool Infector::loadSoFile(const std::string &soname)
     Elf64_Addr baseAddr;
     if (!pTargetOpt->getTargetSoInfo(soname, soAllPath, baseAddr))
         return false;
+
     return pElf->loadSo(soAllPath, baseAddr);
 }
 

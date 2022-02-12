@@ -102,6 +102,7 @@ private:
     struct user_regs_struct *pOrigRegs;
     TargetOpt *pTargetOpt;
     xed_decoded_inst_t *xedd;
+    std::map<std::string, std::string> soMap;
 
     unsigned char backupCode[8] = {0};
 };

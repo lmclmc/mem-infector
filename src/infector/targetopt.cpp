@@ -194,6 +194,26 @@ bool TargetOpt::getTargetSoInfo(const std::string &libsoname,
                                 std::string &soPath, 
                                 Elf64_Addr &baseAddr)
 {
+    long size = 0;
+    return readTargetMaps(libsoname, soPath, baseAddr, size);
+}
+
+bool TargetOpt::getHeapInfo(Elf64_Addr &baseAddr, long &size)
+{
+    std::string str;
+    return readTargetMaps("[heap]", str, baseAddr, size);
+}
+
+bool TargetOpt::getStackInfo(Elf64_Addr &baseAddr, long &size)
+{
+    std::string str;
+    return readTargetMaps("[stack]", str, baseAddr, size);
+}
+
+bool TargetOpt::readTargetMaps(const std::string &memName, 
+                               std::string &soAbsPath, 
+                               Elf64_Addr &baseAddr, long &size)
+{
     char mapsPath[MAPS_PATH_LEN];
     char line[LINE_LEN], tmp[32];
     char *p, *start;
@@ -207,16 +227,10 @@ bool TargetOpt::getTargetSoInfo(const std::string &libsoname,
         return false;
     }
 
-    while (fgets(line, sizeof(line), fp)) {
-        if ((p = strchr(line, '/')) == NULL) 
+    while (fgets(line, sizeof(line), fp)) 
+    {
+        if (!strstr(line, memName.c_str())) 
             continue;
-
-        *(char *)strchr(p, '\n') = '\0';
-
-        if (!strstr(p, libsoname.c_str())) 
-            continue;
-
-        soPath = p;
 
         for (i = 0, start = tmp, p = line; *p != '-'; i++, p++)
             start[i] = *p;
@@ -230,10 +244,23 @@ bool TargetOpt::getTargetSoInfo(const std::string &libsoname,
         start[4] = 0x0;
         unsigned long long a2 = strtoull(start, NULL, 16);
         baseAddr = (a2 << 32) + a1;
+        p++;
+        for (i = 0, start = tmp; *p != ' '; i++, p++)
+            start[i] = *p;
+
+        start[i] = '\0';
+        a1 = strtoull(start+4, NULL, 16);
+        a1 &= 0xffffffff;
+        start[4] = 0x0;
+        a2 = strtoull(start, NULL, 16);
+        size =  (a2 << 32) + a1 - baseAddr;
+
+        if ((p = strchr(line, '/')) == NULL) 
+            continue;
+
+        *(char *)strchr(p, '\n') = '\0';
+        soAbsPath = p;
+
         return true;
     }
-    
-    baseAddr = 0;
-    fclose(fp);
-    return false;
 }

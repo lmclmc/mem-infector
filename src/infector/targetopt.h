@@ -27,6 +27,13 @@ public:
 
     bool getTargetSoInfo(const std::string &, std::string &, Elf64_Addr &);
 
+    bool getHeapInfo(Elf64_Addr &, long &);
+
+    bool getStackInfo(Elf64_Addr &, long &);
+
+private:
+    bool readTargetMaps(const std::string &,std::string &, Elf64_Addr &, long &);
+
 private:
     int pid;
 
