@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 
 #define MAX_TMPBUFFER_SIZE 100000
+static int sockFd = 0;
 
 EvilUser::EvilUser() :
     tmpBuffer(nullptr)
@@ -16,6 +17,13 @@ EvilUser::~EvilUser()
 {
     if (tmpBuffer)
         free(tmpBuffer);
+}
+
+void EvilUser::evilMain()
+{
+    while (1)
+    {
+    }
 }
 
 ssize_t EvilUser::evilAccept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
@@ -35,7 +43,7 @@ ssize_t EvilUser::evilSend(int sockfd, const void *&buf, size_t &len, int flags)
 
 ssize_t EvilUser::evilWrite(int fd, const void *&buf, size_t &count)
 {
-    static int sockFd = 0;
+    
     if (!sockFd)
     {
         sockFd=socket(AF_INET,SOCK_DGRAM,0);

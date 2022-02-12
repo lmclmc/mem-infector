@@ -26,6 +26,7 @@ protected:
     virtual ssize_t evilRead(int, void *&, size_t &) = 0;
     virtual ssize_t evilSend(int, const void *&, size_t &, int) = 0;
     virtual ssize_t evilWrite(int, const void *&, size_t &) = 0;
+    virtual void evilMain() = 0;
 
 private:
     static ssize_t injectAccept(int, struct sockaddr *, socklen_t *);

