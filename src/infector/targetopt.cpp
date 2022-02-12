@@ -149,6 +149,47 @@ bool TargetOpt::contTarget()
     return true;
 }
 
+bool TargetOpt::stepTarget()
+{
+    if (ptrace(PTRACE_SINGLESTEP, pid, NULL, NULL) < 0)
+    {
+        LOGGER_ERROR << "PTRACE_SINGLESTEP: " << strerror(errno);
+        return false;
+    }
+
+    int status;
+
+	if (waitpid(pid, &status, 0) < 1)
+    {
+		LOGGER_ERROR << " waitpid " << strerror(errno);
+		return false;
+	}
+
+	if (status)
+    {
+		if (WIFEXITED(status))
+        {
+			errno = ECHILD;
+            LOGGER_ERROR << "pid = " << pid << "WIFEXITED = " << status;
+			return false;
+		}
+		if (WIFSIGNALED(status))
+        {
+			errno = ECHILD;
+            LOGGER_ERROR << "pidof = " << pid << " WIFSIGNALED = " << status 
+                         << "WTERMSIG = " << status << " " << WTERMSIG(status);
+			return false;
+		}
+		if (WIFCONTINUED(status))
+        {
+			errno = EINTR;
+            LOGGER_ERROR << "pidof = " << pid << " WIFCONTINUED = " << status;
+			return false;
+		}
+	}
+    return true;
+}
+
 bool TargetOpt::getTargetSoInfo(const std::string &libsoname, 
                                 std::string &soPath, 
                                 Elf64_Addr &baseAddr)

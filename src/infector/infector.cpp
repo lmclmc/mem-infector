@@ -139,6 +139,11 @@ long Infector::restoreTarget()
     return retAddr;
 }
 
+bool Infector::stepTarget()
+{
+    return pTargetOpt->stepTarget();
+}
+
 long Infector::getSym(const std::string &soname, const std::string &symname)
 {
     Elf64Wrapper *pElf = TypeSingle<Elf64Wrapper>::getInstance();

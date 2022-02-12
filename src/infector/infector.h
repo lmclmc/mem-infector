@@ -39,15 +39,26 @@ public:
         static_assert(argsNum <= MAX_ARG_NUM, 
                      "the number of parameters is more than MAX_ARG_NUM");
 
-        if (!backupTarget())
-            return 0;
+        Elf64_Addr retAddr = 0;
+        for (int i = 0; i < 20; i++)
+        {
+            if (!backupTarget())
+                return 0;
 
-        callRemoteFuncIdx<0>(args...);
+            callRemoteFuncIdx<0>(args...);
 
-        if (!updateTarget())
-            return 0;
+            if (!updateTarget())
+                return 0;
 
-        return restoreTarget();
+            retAddr = restoreTarget();
+            if (retAddr)
+                return retAddr;
+
+            if (!stepTarget())
+                return 0;
+        }
+        
+        return 0;
     }
 
     bool writeStrToTarget(Elf64_Addr &, const std::string &);
@@ -74,6 +85,8 @@ private:
     bool updateTarget();
 
     long restoreTarget();
+
+    bool stepTarget();
 
     bool getSoInfo(const std::string &, std::string &, Elf64_Addr &);
 

@@ -23,6 +23,8 @@ public:
 
     bool contTarget();
 
+    bool stepTarget();
+
     bool getTargetSoInfo(const std::string &, std::string &, Elf64_Addr &);
 
 private:
