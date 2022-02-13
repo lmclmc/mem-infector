@@ -1,8 +1,8 @@
 #include "infector.h"
-#include "targetopt.h"
+#include "target/targetopt.h"
 #include "single.hpp"
 #include "elfopt.h"
-#include "log.h"
+#include "log/log.h"
 extern "C"
 {
 #include "xed/xed-interface.h"

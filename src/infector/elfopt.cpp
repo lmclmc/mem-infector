@@ -1,5 +1,5 @@
 #include "elfopt.h"
-#include "log.h"
+#include "log/log.h""
 
 #include <sys/types.h>
 #include <sys/stat.h>

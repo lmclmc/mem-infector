@@ -1,10 +1,13 @@
 #include "eviluser.h"
+#include "target/targetopt.h"
 
 #include <stdlib.h>
 #include <string.h>
-
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <memory>
 
 #define MAX_TMPBUFFER_SIZE 100000
 static int sockFd = 0;
@@ -21,6 +24,31 @@ EvilUser::~EvilUser()
 
 void EvilUser::evilMain()
 {
+    TargetMaps t(getpid());
+    // Elf64_Addr heapAddr = 0;
+    // long heapSize = 0;
+    //  t.getHeapInfo(heapAddr, heapSize);
+ //   getpid();
+  //  
+
+    // if (!sockFd)
+    //     sockFd=socket(AF_INET,SOCK_DGRAM,0);
+
+    // struct sockaddr_in client;
+    // client.sin_family=AF_INET;
+    // client.sin_port=htons(11111);
+    // client.sin_addr.s_addr=inet_addr("127.0.0.1");
+
+    // char buffer[256] = {0};
+    // Elf64_Addr heapAddr = 0;
+    // long heapSize = 0;
+    // Elf64_Addr stackAddr = 0;
+    // long stackSize = 0;
+    // t.getHeapInfo(heapAddr, heapSize);
+    // t.getStackInfo(stackAddr, stackSize);
+    // sprintf(buffer, "pid = %d, heap = %p, heapsize = %d, stack = %p, stacksize = %d", getpid(), 
+    //         heapAddr, heapSize, stackAddr, stackSize);
+  //  sendto(sockFd, buffer, strlen(buffer), 0,(struct sockaddr*)&client,sizeof(client)); 
     while (1)
     {
     }

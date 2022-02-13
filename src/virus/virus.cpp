@@ -1,7 +1,6 @@
 #include "infector/infector.h"
-#include "infector/targetopt.h"
 #include "infector/cmdline.h"
-#include "infector/log.h"
+#include "log/log.h"
 
 #include <elf.h>
 #include <dlfcn.h>
@@ -9,8 +8,7 @@
 #include <string.h>
 
 #include <sys/types.h>
-       #include <sys/wait.h>
-
+#include <sys/wait.h>
 
 int main(int argc, char *argv[])
 {
@@ -35,7 +33,7 @@ int main(int argc, char *argv[])
     }
     Elf64_Addr mallocAddr = infector.getSym("libc-2.31.so", "malloc");
     Elf64_Addr dlopenAddr = infector.getSym("libc-2.31.so", "__libc_dlopen_mode");
- 
+  
     Elf64_Addr retAddr = infector.callRemoteFunc(mallocAddr, 1000);
  
     if (!infector.writeStrToTarget(retAddr, injectso))

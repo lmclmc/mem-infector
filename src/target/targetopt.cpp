@@ -1,5 +1,5 @@
 #include "targetopt.h"
-#include "log.h"
+#include "log/log.h"
 
 #include <sys/ptrace.h>
 #include <sys/user.h>
@@ -13,7 +13,8 @@
 
 TargetOpt::TargetOpt(int pid_) :
     pid(pid_),
-    isAttach(false)
+    isAttach(false),
+    TargetMaps(pid_)
 {}
 
 bool TargetOpt::attachTarget()
@@ -190,7 +191,11 @@ bool TargetOpt::stepTarget()
     return true;
 }
 
-bool TargetOpt::getTargetSoInfo(const std::string &libsoname, 
+TargetMaps::TargetMaps(int pid_) :
+    pid(pid_)
+{}
+
+bool TargetMaps::getTargetSoInfo(const std::string &libsoname, 
                                 std::string &soPath, 
                                 Elf64_Addr &baseAddr)
 {
@@ -198,19 +203,19 @@ bool TargetOpt::getTargetSoInfo(const std::string &libsoname,
     return readTargetMaps(libsoname, soPath, baseAddr, size);
 }
 
-bool TargetOpt::getHeapInfo(Elf64_Addr &baseAddr, long &size)
+bool TargetMaps::getHeapInfo(Elf64_Addr &baseAddr, long &size)
 {
     std::string str;
     return readTargetMaps("[heap]", str, baseAddr, size);
 }
 
-bool TargetOpt::getStackInfo(Elf64_Addr &baseAddr, long &size)
+bool TargetMaps::getStackInfo(Elf64_Addr &baseAddr, long &size)
 {
     std::string str;
     return readTargetMaps("[stack]", str, baseAddr, size);
 }
 
-bool TargetOpt::readTargetMaps(const std::string &memName, 
+bool TargetMaps::readTargetMaps(const std::string &memName, 
                                std::string &soAbsPath, 
                                Elf64_Addr &baseAddr, long &size)
 {

@@ -46,14 +46,14 @@ public:
                 return 0;
 
             callRemoteFuncIdx<0>(args...);
-
+ 
             if (!updateTarget())
                 return 0;
 
             retAddr = restoreTarget();
             if (retAddr)
                 return retAddr;
-
+                
             if (!stepTarget())
                 return 0;
         }
