@@ -269,3 +269,67 @@ bool TargetMaps::readTargetMaps(const std::string &memName,
         return true;
     }
 }
+
+std::list<MapInfo> &TargetMaps::getMapInfo()
+{
+    return mapInfos;
+}
+
+bool TargetMaps::readTargetAllMaps()
+{
+    char mapsPath[MAPS_PATH_LEN];
+    char line[LINE_LEN], tmp[32];
+    char *p, *start;
+    int i, size;
+    std::string soAbsPath;
+    Elf64_Addr baseAddr;
+    
+    snprintf(mapsPath, sizeof(mapsPath), "/proc/%d/maps", pid);
+    FILE *fp;
+    if ((fp = fopen(mapsPath, "r")) == NULL) 
+    {
+        LOGGER_ERROR << "fopen: " << strerror(errno);
+        return false;
+    }
+
+    while (fgets(line, sizeof(line), fp)) 
+    {
+        if (strstr(line, "[vvar]")) continue;
+        soAbsPath = "";
+
+        for (i = 0, start = tmp, p = line; *p != '-'; i++, p++)
+            start[i] = *p;
+        if (i < 12) continue;  
+
+        start[i] = '\0';
+        unsigned long long a1 = strtoull(start+4, NULL, 16);
+        a1 &= 0xffffffff;
+        start[4] = 0x0;
+        unsigned long long a2 = strtoull(start, NULL, 16);
+        baseAddr = (a2 << 32) + a1;
+
+        p++;
+        for (i = 0, start = tmp; *p != ' '; i++, p++)
+            start[i] = *p;
+
+        if (*++p != 'r') continue;
+
+        start[i] = '\0';
+        a1 = strtoull(start+4, NULL, 16);
+        a1 &= 0xffffffff;
+        start[4] = 0x0;
+        a2 = strtoull(start, NULL, 16);
+        size =  (a2 << 32) + a1 - baseAddr;
+
+        if ((p = strchr(line, '/')))
+        {
+            *(char *)strchr(p, '\n') = '\0';
+            soAbsPath = p;
+        } 
+       
+        mapInfos.emplace_back(size, baseAddr, soAbsPath);
+    }
+
+    fclose(fp);
+    return true;
+}
