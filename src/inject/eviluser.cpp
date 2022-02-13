@@ -48,7 +48,7 @@ bool searchBinary(int sockFd, struct sockaddr_in *client, Elf64_Addr baseAddr,
     int ret = 0;
     unsigned char *p = (unsigned char *)baseAddr;
     bool status = false;
-    char buffer[256] = {0};
+    char buffer[4096] = {0};
     char *c = NULL;
     while (1)
     {
