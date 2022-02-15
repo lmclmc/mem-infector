@@ -10,6 +10,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#define LIBC_SO "libc-2.31.so"
+
 int main(int argc, char *argv[])
 {
     cmdline::parser cmd;
@@ -26,13 +28,13 @@ int main(int argc, char *argv[])
         LOGGER_ERROR << "attachTarget";
         return 0;
     }
-    if (!infector.loadSoFile("libc-2.31.so"))
+    if (!infector.loadSoFile(LIBC_SO))
     {
         LOGGER_ERROR << "loadSoFile";
         return 0;
     }
-    Elf64_Addr mallocAddr = infector.getSym("libc-2.31.so", "malloc");
-    Elf64_Addr dlopenAddr = infector.getSym("libc-2.31.so", "__libc_dlopen_mode");
+    Elf64_Addr mallocAddr = infector.getSym(LIBC_SO, "malloc");
+    Elf64_Addr dlopenAddr = infector.getSym(LIBC_SO, "__libc_dlopen_mode");
   
     Elf64_Addr retAddr = infector.callRemoteFunc(mallocAddr, 1000);
  

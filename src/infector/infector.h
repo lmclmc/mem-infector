@@ -22,16 +22,30 @@ public:
     Infector(int pid);
     ~Infector();
 
-    bool injectSysTableInit();
-
-    long getSym(const std::string &, const std::string &);
-    bool loadSoFile(const std::string &);
-
+    /**
+     * @brief 链接目标进程并且将其阻塞
+     * @return true 成功
+     * @return false 失败
+     */
     bool attachTarget();
+
+    /**
+     * @brief 断开与目标进程的链接，使目标进程重新进入运行状态
+     * @return true 成功
+     * @return false 失败
+     */
     bool detachTarget();
 
-    int remoteFuncJump(Elf64_Addr &, Elf64_Addr &, Elf64_Addr &, Elf64_Addr &);
-
+    /**
+     * @brief 在目标进程内部调用其函数
+     * 
+     * @tparam Args  可以传入任意类型的参数，但是参数类型一定要限制为CPU寄存器认识的类型
+     *               如，地址，值变量等 包括但不限于 long int short char等等。
+     * @param args  第一个参数为目标进程的函数地址，表示在目标函数内部调用该函数，
+     *              后面的参数均为传入目标进程函数的参数，但是要注意后面的参数一定也要来自目标进程。
+     *              并且还需要注意第一个参数后面的参数数量要与目标函数定义的参数数量相等。
+     * @return long 在目标进程内部调用函数完毕后，将返回值读取到本进程
+     */
     template<class ...Args>
     long callRemoteFunc(Args ...args)
     {       
@@ -61,8 +75,44 @@ public:
         return 0;
     }
 
+    /**
+     * @brief 向目标进程的目标地址里面写字符串。
+     * @return true 成功
+     * @return false 失败
+     */
     bool writeStrToTarget(Elf64_Addr &, const std::string &);
 
+    /**
+     * @brief 将目标进程链接的动态库的符号信息加载进本进程
+     * @param soname 指定动态库名称
+     * @return true 成功
+     * @return false  失败  
+     */
+    bool loadSoFile(const std::string &soname);
+
+    /**
+     * @brief 获取目标进程连接的动态库的符号地址。与一定要在loadSoFile后面使用
+     * 
+     * @param soname 指定动态库名称
+     * @param symname 符号名称
+     * @return long 目标进程内部的符号地址
+     */
+    long getSym(const std::string &soname, const std::string &symname);
+
+    /**
+     * @brief 目标进程函数劫持，暂时考虑是否弃用该接口
+     * 
+     * @return int 
+     */
+    int remoteFuncJump(Elf64_Addr &, Elf64_Addr &, Elf64_Addr &, Elf64_Addr &);
+
+    /**
+     * @brief 目标进程的系统调用表劫持，暂时考虑是否弃用该接口
+     * 
+     * @return true 
+     * @return false 
+     */
+    bool injectSysTableInit();
 private:
     template<int idx, class T, class ...Args>
     void callRemoteFuncIdx(T t, Args ...args)
@@ -94,16 +144,14 @@ private:
                           const std::string &, Elf64_Addr);
 
 private:
-    std::vector<std::function<void(long)>> mRegvec;
-    SymTabs symTabs;
-
     int mPid;
     struct user_regs_struct *pNewRegs;
     struct user_regs_struct *pOrigRegs;
     TargetOpt *pTargetOpt;
     xed_decoded_inst_t *xedd;
     std::map<std::string, std::string> soMap;
-
+    std::vector<std::function<void(long)>> mRegvec;
+    SymTabs symTabs;
     unsigned char backupCode[8] = {0};
 };
 
