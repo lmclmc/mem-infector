@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
 
     int pid = cmd.get<int>("pid");
     const char *injectso = cmd.get<std::string>("libso").c_str();
-    Infector infector(pid);
+    Infector infector(pid, LIBC_SO);
     if (!infector.attachTarget())
     {
         LOGGER_ERROR << "attachTarget";
@@ -35,6 +35,7 @@ int main(int argc, char *argv[])
     }
     Elf64_Addr mallocAddr = infector.getSym(LIBC_SO, "malloc");
     Elf64_Addr dlopenAddr = infector.getSym(LIBC_SO, "__libc_dlopen_mode");
+    Elf64_Addr exitAddr = infector.getSym(LIBC_SO, "exit");
   
     Elf64_Addr retAddr = infector.callRemoteFunc(mallocAddr, 1000);
  
@@ -43,6 +44,9 @@ int main(int argc, char *argv[])
         LOGGER_ERROR << "writeStrToTarget";
         return 0;
     }
+
+
+    infector.createThread(exitAddr, 0);
 
     retAddr = infector.callRemoteFunc(dlopenAddr, retAddr, RTLD_NOW|RTLD_GLOBAL, 0);
 

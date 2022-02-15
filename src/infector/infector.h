@@ -19,7 +19,13 @@ public:
     using SymTab = std::map<std::string, long>;
     using SymTabs = std::map<std::string, SymTab>;
 
-    Infector(int pid);
+    /**
+     * @brief 构造函数，创建对象
+     * 
+     * @param pid   需要感染的目标进程
+     * @param libcSoname   目标进程使用的C库名称
+     */
+    Infector(int pid, const std::string &libcSoname);
     ~Infector();
 
     /**
@@ -100,6 +106,16 @@ public:
     long getSym(const std::string &soname, const std::string &symname);
 
     /**
+     * @brief 在目标进程内部注入线程
+     * 
+     * @param funcAddr 目标进程内部的函数地址
+     * @param paramAddr 目标进程内部的参数地址
+     * @return true 成功
+     * @return false 失败
+     */
+    bool createThread(Elf64_Addr funcAddr, Elf64_Addr paramAddr);
+
+    /**
      * @brief 目标进程函数劫持，暂时考虑是否弃用该接口
      * 
      * @return int 
@@ -149,6 +165,7 @@ private:
     struct user_regs_struct *pOrigRegs;
     TargetOpt *pTargetOpt;
     xed_decoded_inst_t *xedd;
+    std::string mLicSoname;
     std::map<std::string, std::string> soMap;
     std::vector<std::function<void(long)>> mRegvec;
     SymTabs symTabs;

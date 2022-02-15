@@ -20,8 +20,9 @@ extern "C"
 #define CALL_RAX_CMD "\xff\xd0\xcc\x90\x90\x90\x90\x90"
 #define JMP_CMD 0xe9
 
-Infector::Infector(int pid_) :
-    mPid(pid_)
+Infector::Infector(int pid_, const std::string &libcSoname) :
+    mPid(pid_),
+    mLicSoname(libcSoname)
 {
     regvecInit();
     pNewRegs = static_cast<struct user_regs_struct *>(
@@ -123,6 +124,25 @@ bool Infector::updateTarget()
     return true;
 }
 
+bool Infector::createThread(Elf64_Addr funcAddr, Elf64_Addr paramAddr)
+{
+    Elf64_Addr mmapAddr = getSym(mLicSoname, "mmap");
+    Elf64_Addr cloneAddr = getSym(mLicSoname, "clone");
+    int stackSize = 1024*1024*8;
+    long mmapRetAddr = callRemoteFunc(mmapAddr, NULL, stackSize, 
+                                      PROT_READ | PROT_WRITE, 
+                                      MAP_PRIVATE | MAP_ANONYMOUS | MAP_ANON,
+                                      -1, 0);
+
+    long cloneRetAddr = callRemoteFunc(cloneAddr, funcAddr,
+                                       mmapRetAddr + stackSize,
+                                       CLONE_VM | CLONE_FS | CLONE_THREAD | 
+                                       CLONE_FILES | CLONE_SIGHAND | SIGCHLD, 
+                                       paramAddr);
+
+    return cloneRetAddr;
+}
+
 long Infector::restoreTarget()
 {
     if (!pTargetOpt->readTarget(*pNewRegs))
@@ -194,7 +214,7 @@ Elf64_Addr Infector::syscallJmp(const std::string &syscall,
                                 const std::string &setSyscall, 
                                 Elf64_Addr tmpAddr)
 {
-    Elf64_Addr syscallAddr = getSym("libc-2.31.so", syscall);
+    Elf64_Addr syscallAddr = getSym(mLicSoname, syscall);
     Elf64_Addr injectCallAddr = getSym("libinject.so", injectCall);
     Elf64_Addr setSyscallAddr = getSym("libinject.so", setSyscall);
 
