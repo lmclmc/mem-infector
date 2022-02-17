@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
     }
 
 
-    infector.createThread(exitAddr, 0);
+    //infector.createThread(exitAddr, 0);
 
     retAddr = infector.callRemoteFunc(dlopenAddr, retAddr, RTLD_NOW|RTLD_GLOBAL, 0);
 

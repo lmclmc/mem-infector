@@ -39,13 +39,14 @@ ssize_t Inject::injectRead(int fd, void *buf, size_t count)
 {
     long funAddr = syscallTable[SystemCall::READ];
 
-    if (gInject)
-        gInject->evilRead(fd, buf, count);
-
+    ssize_t ret = 0;
     if (funAddr)
-        return ((typeof(injectRead) *)funAddr)(fd, buf, count);
+        ret = ((typeof(injectRead) *)funAddr)(fd, buf, count);
 
-    return 0;
+    if (gInject)
+        gInject->evilRead(fd, buf, (size_t &)ret);
+
+    return ret;
 }
 
 void Inject::setReadAddr(long addr_)

