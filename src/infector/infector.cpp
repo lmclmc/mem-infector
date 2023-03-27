@@ -242,19 +242,19 @@ bool Infector::injectSysTableInit()
     assert(mmapRetAddr);
 
     mmapRetAddr = syscallJmp("accept", "_ZN6Inject12injectAcceptEiP8sockaddrPj", 
-                             "_ZN6Inject13setAcceptAddrEl", mmapRetAddr);
+                             "_ZN6Inject13setAcceptAddrEm", mmapRetAddr);
     assert(mmapRetAddr);
 
     mmapRetAddr = syscallJmp("read", "_ZN6Inject10injectReadEiPvm", 
-                             "_ZN6Inject11setReadAddrEl", mmapRetAddr);
+                             "_ZN6Inject11setReadAddrEm", mmapRetAddr);
     assert(mmapRetAddr);
 
     mmapRetAddr = syscallJmp("send", "_ZN6Inject10injectSendEiPKvmi", 
-                             "_ZN6Inject11setSendAddrEl", mmapRetAddr);
+                             "_ZN6Inject11setSendAddrEm", mmapRetAddr);
     assert(mmapRetAddr);
 
     mmapRetAddr = syscallJmp("write", "_ZN6Inject11injectWriteEiPKvm", 
-                             "_ZN6Inject12setWriteAddrEl", mmapRetAddr);
+                             "_ZN6Inject12setWriteAddrEm", mmapRetAddr);
     assert(mmapRetAddr);
 
     return true;

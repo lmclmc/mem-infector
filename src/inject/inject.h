@@ -2,6 +2,7 @@
 #define INJECT_H_
 
 #include <stdio.h>
+#include <elf.h>
 #include <sys/socket.h>
 
 #define EXPORT_INJECT(type) \
@@ -23,27 +24,25 @@ public:
 
 protected:
     virtual ssize_t evilAccept(int, struct sockaddr *, socklen_t *) = 0;
-    virtual ssize_t evilRead(int, void *&, size_t &) = 0;
-    virtual ssize_t evilSend(int, const void *&, size_t &, int) = 0;
-    virtual ssize_t evilWrite(int, const void *&, size_t &) = 0;
+    virtual ssize_t evilRead(int, void *, size_t) = 0;
+    virtual ssize_t evilSend(int, const void *, size_t, int) = 0;
+    virtual ssize_t evilWrite(int, const void *, size_t) = 0;
     virtual void evilMain() = 0;
 
 private:
     static ssize_t injectAccept(int, struct sockaddr *, socklen_t *);
-    void setAcceptAddr(long);
+    void setAcceptAddr(Elf64_Addr);
 
     static ssize_t injectRead(int, void *, size_t); 
-    void setReadAddr(long);
+    void setReadAddr(Elf64_Addr);
 
     static ssize_t injectSend(int, const void *, size_t, int);
-    void setSendAddr(long);
+    void setSendAddr(Elf64_Addr);
 
     static ssize_t injectWrite(int, const void *, size_t);
-    void setWriteAddr(long);
+    void setWriteAddr(Elf64_Addr);
 private:
-    static long syscallTable[100];
+    static Elf64_Addr syscallTable[100];
 };
-
-void echo_printf(const char *src);
 
 #endif

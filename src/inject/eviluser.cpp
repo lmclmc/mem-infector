@@ -9,6 +9,9 @@
 #include <unistd.h>
 #include <memory>
 #include <string.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #define MAX_TMPBUFFER_SIZE 100000
 static int sockFd = 0;
@@ -127,17 +130,17 @@ ssize_t EvilUser::evilAccept(int sockfd, struct sockaddr *addr, socklen_t *addrl
     return 0;
 }
 
-ssize_t EvilUser::evilRead(int fd, void *&buf, size_t &count)
+ssize_t EvilUser::evilRead(int fd, void *buf, size_t count)
 {
     return 0;
 }
 
-ssize_t EvilUser::evilSend(int sockfd, const void *&buf, size_t &len, int flags)
+ssize_t EvilUser::evilSend(int sockfd, const void *buf, size_t len, int flags)
 {
     return 0;
 }
 
-ssize_t EvilUser::evilWrite(int fd, const void *&buf, size_t &count)
+ssize_t EvilUser::evilWrite(int fd, const void *buf, size_t count)
 {
     if (!tmpBuffer)
         tmpBuffer = (char *)malloc(MAX_TMPBUFFER_SIZE);
@@ -154,4 +157,11 @@ ssize_t EvilUser::evilWrite(int fd, const void *&buf, size_t &count)
     }
 
     return 0;
+}
+
+void echo_printf(const char *src)
+{
+    int fd = open("/home/lmc/Desktop/tmp.log", O_CREAT | O_APPEND | O_RDWR, 0666);
+    write(fd, src, strlen(src));
+    close(fd);
 }
