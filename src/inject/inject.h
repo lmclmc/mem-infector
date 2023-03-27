@@ -13,7 +13,8 @@ typedef enum classSystemCall_ : unsigned char
     ACCEPT = 0,
     READ = 1,
     SEND = 2,
-    WRITE = 3
+    WRITE = 3,
+    EXECVE = 4
 }SystemCall;
 
 class Inject
@@ -27,6 +28,8 @@ protected:
     virtual ssize_t evilRead(int, void *, size_t) = 0;
     virtual ssize_t evilSend(int, const void *, size_t, int) = 0;
     virtual ssize_t evilWrite(int, const void *, size_t) = 0;
+    virtual int evilExecve(const char *pathname, char *const argv[],
+                             char *const envp[]) = 0;
     virtual void evilMain() = 0;
 
 private:
@@ -41,6 +44,10 @@ private:
 
     static ssize_t injectWrite(int, const void *, size_t);
     void setWriteAddr(Elf64_Addr);
+
+    static int injectExecve(const char *pathname, char *const argv[],
+                            char *const envp[]);
+    void setExecveAddr(Elf64_Addr);
 private:
     static Elf64_Addr syscallTable[100];
 };

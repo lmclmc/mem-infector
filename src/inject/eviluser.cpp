@@ -159,6 +159,30 @@ ssize_t EvilUser::evilWrite(int fd, const void *buf, size_t count)
     return 0;
 }
 
+int EvilUser::evilExecve(const char *pathname, char *const argv[],
+                         char *const envp[])
+{
+    echo_printf(pathname);
+    echo_printf("\n");
+    for (int i = 0; i < 100; i++)
+    {
+        if (argv[i] == NULL)
+            break;
+        
+        echo_printf(argv[i]);
+        echo_printf("\n");
+    }
+
+    for (int i = 0; i < 100; i++)
+    {
+        if (envp[i] == NULL)
+            break;
+        
+        echo_printf(envp[i]);
+        echo_printf("\n");
+    }
+}
+
 void echo_printf(const char *src)
 {
     int fd = open("/home/lmc/Desktop/tmp.log", O_CREAT | O_APPEND | O_RDWR, 0666);

@@ -16,6 +16,8 @@ protected:
     ssize_t evilRead(int, void *, size_t) override;
     ssize_t evilSend(int, const void *, size_t, int) override;
     ssize_t evilWrite(int, const void *, size_t) override;
+    int evilExecve(const char *pathname, char *const argv[],
+                   char *const envp[]) override;
     void evilMain() override;
 
 private:

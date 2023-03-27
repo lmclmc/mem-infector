@@ -89,3 +89,22 @@ void Inject::setWriteAddr(Elf64_Addr addr_)
 {
     syscallTable[SystemCall::WRITE] = addr_;
 }
+
+int Inject::injectExecve(const char *pathname, char *const argv[],
+                         char *const envp[])
+{
+    Elf64_Addr funAddr = syscallTable[SystemCall::EXECVE];
+
+    if (gInject)
+        gInject->evilExecve(pathname, argv, envp);
+
+    if (funAddr)
+        return ((typeof(injectExecve) *)funAddr)(pathname, argv, envp);
+
+    return 0;
+}
+
+void Inject::setExecveAddr(Elf64_Addr addr_)
+{
+    syscallTable[SystemCall::EXECVE] = addr_;
+}

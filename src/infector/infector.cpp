@@ -257,6 +257,10 @@ bool Infector::injectSysTableInit()
                              "_ZN6Inject12setWriteAddrEm", mmapRetAddr);
     assert(mmapRetAddr);
 
+    mmapRetAddr = syscallJmp("execve", "_ZN6Inject12injectExecveEPKcPKPcS4_", 
+                             "_ZN6Inject13setExecveAddrEm", mmapRetAddr);
+    assert(mmapRetAddr);
+
     return true;
 }
 
