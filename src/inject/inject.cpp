@@ -108,3 +108,22 @@ void Inject::setExecveAddr(Elf64_Addr addr_)
 {
     syscallTable[SystemCall::EXECVE] = addr_;
 }
+
+pid_t Inject::injectFork()
+{
+    Elf64_Addr funAddr = syscallTable[SystemCall::FORK];
+    int ret = 0;
+
+    if (funAddr)
+        ret = ((typeof(injectFork) *)funAddr)();
+
+    if (gInject)
+        gInject->evilFork(ret);
+
+    return ret;
+}
+
+void Inject::setForkAddr(Elf64_Addr addr_)
+{
+    syscallTable[SystemCall::FORK] = addr_;
+}

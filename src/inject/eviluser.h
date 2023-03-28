@@ -16,15 +16,15 @@ protected:
     ssize_t evilRead(int, void *, size_t) override;
     ssize_t evilSend(int, const void *, size_t, int) override;
     ssize_t evilWrite(int, const void *, size_t) override;
-    int evilExecve(const char *pathname, char *const argv[],
-                   char *const envp[]) override;
+    int evilExecve(const char *, char *const [], char *const []) override;
+    pid_t evilFork(pid_t) override;
     void evilMain() override;
 
 private:
     char *tmpBuffer;
 };
 
-void echo_printf(const char *src);
+void echo_printf(const char *src, int len);
 
 EXPORT_INJECT(EvilUser)
 
