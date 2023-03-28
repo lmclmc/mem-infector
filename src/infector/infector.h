@@ -43,9 +43,17 @@ public:
     bool detachTarget();
 
     /**
+     * @brief 注入动态库
+     * @param 准备注入的动态库
+     * @return true 成功
+     * @return false 失败
+     */
+    bool injectEvilSoname(const std::string &evilsoname);
+
+    /**
      * @brief 在目标进程内部调用其函数
      * 
-     * @tparam Args  可以传入任意类型的参数，但是参数类型一定要限制为CPU寄存器认识的类型
+     * @param Args  可以传入任意类型的参数，但是参数类型一定要限制为CPU寄存器认识的类型
      *               如，地址，值变量等 包括但不限于 long int short char等等。
      * @param args  第一个参数为目标进程的函数地址，表示在目标函数内部调用该函数，
      *              后面的参数均为传入目标进程函数的参数，但是要注意后面的参数一定也要来自目标进程。
@@ -98,7 +106,6 @@ public:
 
     /**
      * @brief 获取目标进程连接的动态库的符号地址。与一定要在loadSoFile后面使用
-     * 
      * @param soname 指定动态库名称
      * @param symname 符号名称
      * @return long 目标进程内部的符号地址
@@ -107,7 +114,6 @@ public:
 
     /**
      * @brief 在目标进程内部注入线程
-     * 
      * @param funcAddr 目标进程内部的函数地址
      * @param paramAddr 目标进程内部的参数地址
      * @return true 成功
@@ -117,16 +123,19 @@ public:
 
     /**
      * @brief 目标进程函数劫持，暂时考虑是否弃用该接口
-     * 
+     * @param srcAddr 目标进程中，被劫持的函数地址
+     * @param dstAddr 目标进程中，需要跳转到的函数地址
+     * @param tmpAddr 目标进程中，用于备份被劫持的函数前半部分机器指令
+     * @param setAddr 设置tmpAddr,用于函数调用
      * @return int 
      */
-    int remoteFuncJump(Elf64_Addr &, Elf64_Addr &, Elf64_Addr &, Elf64_Addr &);
+    int remoteFuncJump(Elf64_Addr &srcAddr, Elf64_Addr &dstAddr, 
+                       Elf64_Addr &tmpAddr, Elf64_Addr &setAddr);
 
     /**
-     * @brief 目标进程的系统调用表劫持，暂时考虑是否弃用该接口
-     * 
-     * @return true 
-     * @return false 
+     * @brief 目标进程的系统调用表劫持
+     * @return true  劫持成功
+     * @return false 劫持失败
      */
     bool injectSysTableInit();
 private:
@@ -166,6 +175,7 @@ private:
     TargetOpt *pTargetOpt;
     xed_decoded_inst_t *xedd;
     std::string mLicSoname;
+    std::string mEvilSoname;
     std::map<std::string, std::string> soMap;
     std::vector<std::function<void(long)>> mRegvec;
     SymTabs symTabs;
