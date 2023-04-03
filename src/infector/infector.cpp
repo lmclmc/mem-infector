@@ -1,6 +1,6 @@
 #include "infector.h"
 #include "target/targetopt.h"
-#include "single.hpp"
+#include "single/single.hpp"
 #include "elfopt.h"
 #include "log/log.h"
 extern "C"
@@ -21,6 +21,8 @@ extern "C"
 #define CALL_RAX_CMD "\xff\xd0\xcc\x90\x90\x90\x90\x90"
 #define JMP_CMD 0xe9
 #define MEM_SIZE 1000
+
+using namespace lmc;
 
 Infector::Infector(int pid_, const std::string &libcSoname) :
     mPid(pid_),
