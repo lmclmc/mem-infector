@@ -99,18 +99,27 @@ public:
     /**
      * @brief 将目标进程链接的动态库的符号信息加载进本进程
      * @param soname 指定动态库名称
+     * @param update 是否更新so
      * @return true 成功
      * @return false  失败  
      */
-    bool loadSoFile(const std::string &soname);
+    bool loadSoFile(const std::string &soname, bool update = false);
+
+    /**
+     * @brief 将目标进程链接的所有动态库的符号信息加载进本进程
+     * @param update 是否更新so
+     * @return true 成功
+     * @return false  失败  
+     */
+    bool loadAllSoFile(bool update = false);
 
     /**
      * @brief 获取目标进程连接的动态库的符号地址。与一定要在loadSoFile后面使用
-     * @param soname 指定动态库名称
      * @param symname 符号名称
+     * @param soname 指定动态库名称,当动态库为空时，搜索全局符号
      * @return long 目标进程内部的符号地址
      */
-    long getSym(const std::string &soname, const std::string &symname);
+    Elf64_Addr getSym(const std::string &symname, const std::string &soname = "");
 
     /**
      * @brief 在目标进程内部注入线程

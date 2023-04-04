@@ -195,88 +195,21 @@ TargetMaps::TargetMaps(int pid_) :
     pid(pid_)
 {}
 
-bool TargetMaps::getTargetSoInfo(const std::string &libsoname, 
-                                std::string &soPath, 
-                                Elf64_Addr &baseAddr)
-{
-    long size = 0;
-    return readTargetMaps(libsoname, soPath, baseAddr, size);
-}
-
-bool TargetMaps::getHeapInfo(Elf64_Addr &baseAddr, long &size)
-{
-    std::string str;
-    return readTargetMaps("[heap]", str, baseAddr, size);
-}
-
-bool TargetMaps::getStackInfo(Elf64_Addr &baseAddr, long &size)
-{
-    std::string str;
-    return readTargetMaps("[stack]", str, baseAddr, size);
-}
-
-bool TargetMaps::readTargetMaps(const std::string &memName, 
-                               std::string &soAbsPath, 
-                               Elf64_Addr &baseAddr, long &size)
-{
-    char mapsPath[MAPS_PATH_LEN];
-    char line[LINE_LEN], tmp[32];
-    char *p, *start;
-    int i;
-
-    snprintf(mapsPath, sizeof(mapsPath), "/proc/%d/maps", pid);
-    FILE *fp;
-    if ((fp = fopen(mapsPath, "r")) == NULL) 
-    {
-        LOGGER_ERROR << "fopen: " << strerror(errno);
-        return false;
-    }
-
-    while (fgets(line, sizeof(line), fp)) 
-    {
-        if (!strstr(line, memName.c_str())) 
-            continue;
-
-        for (i = 0, start = tmp, p = line; *p != '-'; i++, p++)
-            start[i] = *p;
-                
-        start[i] = '\0';
-
-        fclose(fp);
-
-        unsigned long long a1 = strtoull(start+4, NULL, 16);
-        a1 &= 0xffffffff;
-        start[4] = 0x0;
-        unsigned long long a2 = strtoull(start, NULL, 16);
-        baseAddr = (a2 << 32) + a1;
-        p++;
-        for (i = 0, start = tmp; *p != ' '; i++, p++)
-            start[i] = *p;
-
-        start[i] = '\0';
-        a1 = strtoull(start+4, NULL, 16);
-        a1 &= 0xffffffff;
-        start[4] = 0x0;
-        a2 = strtoull(start, NULL, 16);
-        size =  (a2 << 32) + a1 - baseAddr;
-
-        if ((p = strchr(line, '/')) == NULL) 
-            continue;
-
-        *(char *)strchr(p, '\n') = '\0';
-        soAbsPath = p;
-
-        return true;
-    }
-}
-
-std::list<MapInfo> &TargetMaps::getMapInfo()
+std::map<std::string, uint64_t> &TargetMaps::getMapInfo()
 {
     return mapInfos;
 }
 
+void TargetMaps::clearMapInfos()
+{
+    mapInfos.clear();
+}
+
 bool TargetMaps::readTargetAllMaps()
 {
+    if (mapInfos.size() > 0)
+        return true;
+        
     char mapsPath[MAPS_PATH_LEN];
     char line[LINE_LEN], tmp[32];
     char *p, *start;
@@ -294,12 +227,10 @@ bool TargetMaps::readTargetAllMaps()
 
     while (fgets(line, sizeof(line), fp)) 
     {
-        if (strstr(line, "[vvar]")) continue;
         soAbsPath = "";
 
         for (i = 0, start = tmp, p = line; *p != '-'; i++, p++)
             start[i] = *p;
-        if (i < 12) continue;  
 
         start[i] = '\0';
         unsigned long long a1 = strtoull(start+4, NULL, 16);
@@ -312,8 +243,6 @@ bool TargetMaps::readTargetAllMaps()
         for (i = 0, start = tmp; *p != ' '; i++, p++)
             start[i] = *p;
 
-        if (*++p != 'r') continue;
-
         start[i] = '\0';
         a1 = strtoull(start+4, NULL, 16);
         a1 &= 0xffffffff;
@@ -321,13 +250,21 @@ bool TargetMaps::readTargetAllMaps()
         a2 = strtoull(start, NULL, 16);
         size =  (a2 << 32) + a1 - baseAddr;
 
-        if ((p = strchr(line, '/')))
+        if (p = strchr(line, '/'))
+        {
+            *(char *)strchr(p, '\n') = '\0';
+            soAbsPath = p;
+        }
+        if (p = strchr(line, '['))
         {
             *(char *)strchr(p, '\n') = '\0';
             soAbsPath = p;
         } 
-       
-        mapInfos.emplace_back(size, baseAddr, soAbsPath);
+        
+        if (mapInfos.find(soAbsPath) != mapInfos.end())
+            continue;
+            
+        mapInfos.insert({soAbsPath, baseAddr});
     }
 
     fclose(fp);

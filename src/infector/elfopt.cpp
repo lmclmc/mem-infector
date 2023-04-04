@@ -28,7 +28,7 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
 
     if ((mFd = open(soname.c_str(), O_RDONLY)) < 0) 
     {
-        LOGGER_ERROR << "open: " << strerror(errno);
+        LOGGER_ERROR << "open: " << soname << strerror(errno);
         return false;
     }
 
@@ -101,6 +101,7 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
             mSecTab[sHdr[i].sh_type]->pushSection(pMmap, section, baseAddr);
         }
     }
+    close(mFd);
 
     return true;
 }

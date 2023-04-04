@@ -20,14 +20,42 @@ int main(int argc, char *argv[])
     CmdLine *pCmd = TypeSingle<CmdLine>::getInstance();
     pCmd->add<std::vector, int>("-p", "--pid", "set target pid");
     pCmd->add<std::vector, std::string>("-l", "--link", "set libso name");
-
+    pCmd->add<std::vector, std::string>("-g", "--getaddr", 
+                                        "get target process function addr");
+    pCmd->add("-d", "--debug", "debug mode");
     pCmd->parse(argc, argv);
 
+    
     std::vector<int> pidVector;
-    std::vector<std::string> linkVector;
     bool ret = pCmd->get("--pid", pidVector);
-    ret = pCmd->get("--link", linkVector);
+    if (!ret || !pidVector.size())
+    {
+        LOGGER_INFO << "please set --pid";
+        return 0;
+    }
+        
+    
+    std::vector<std::string> funaddrVector;
     Infector infector(pidVector[0], LIBC_SO);
+    ret = pCmd->get("--getaddr", funaddrVector);
+    if (ret)
+    {
+        infector.loadAllSoFile();
+        for (auto &v : funaddrVector)
+        {
+            LOGGER_INFO << LogFormat::addr << infector.getSym(v);
+        }
+        return 0;
+    }
+
+    if (pCmd->get("--debug"))
+    {
+        Infector infector1(pidVector[0], LIBC_SO);
+        infector1.loadSoFile(LIBC_SO);
+        return 0;
+    }
+    std::vector<std::string> linkVector;
+    ret = pCmd->get("--link", linkVector);
     if (!infector.attachTarget())
     {
         LOGGER_ERROR << "attachTarget";
