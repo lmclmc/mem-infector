@@ -1,35 +1,40 @@
 #include "infector/infector.h"
-#include "infector/cmdline.h"
+#include "cmdline/cmdline.h"
+#include "single/single.hpp"
 #include "log/log.h"
 
 #include <elf.h>
 #include <dlfcn.h>
 #include <sys/mman.h>
 #include <string.h>
-
+#include <vector>
 #include <sys/types.h>
 #include <sys/wait.h>
 
 #define LIBC_SO "libc-2.31.so"
 
+using namespace lmc;
+
 int main(int argc, char *argv[])
 {
-    cmdline::parser cmd;
-    cmd.add<int>("pid", 'p', "set target pid", true, 0, cmdline::range(1, 1000000));
-    cmd.add<std::string>("libso", 'l', "set libso name", false, "");
+    CmdLine *pCmd = TypeSingle<CmdLine>::getInstance();
+    pCmd->add<std::vector, int>("-p", "--pid", "set target pid");
+    pCmd->add<std::vector, std::string>("-l", "--link", "set libso name");
 
-    cmd.parse_check(argc, argv);
+    pCmd->parse(argc, argv);
 
-    int pid = cmd.get<int>("pid");
-    const char *injectso = cmd.get<std::string>("libso").c_str();
-    Infector infector(pid, LIBC_SO);
+    std::vector<int> pidVector;
+    std::vector<std::string> linkVector;
+    bool ret = pCmd->get("--pid", pidVector);
+    ret = pCmd->get("--link", linkVector);
+    Infector infector(pidVector[0], LIBC_SO);
     if (!infector.attachTarget())
     {
         LOGGER_ERROR << "attachTarget";
         return 0;
     }
 
-    infector.injectEvilSoname(injectso);
+    infector.injectEvilSoname(linkVector[0]);
 
     infector.injectSysTableInit();
 
