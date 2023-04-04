@@ -7,4 +7,6 @@ set(KDIR /home/lmc/Desktop/linux-5.4.90)
 include_directories(src/)
 include_directories(${CMAKE_INCLUDE_PATH})
 
+link_directories(${CMAKE_LIBRARY_PATH})
+
 add_subdirectory(src/)

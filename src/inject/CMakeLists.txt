@@ -7,6 +7,5 @@ add_library(inject SHARED ${INJECT_FILES})
 target_link_libraries(inject 
     "-Wl,--whole-archive" #之后的库使用--whole-archive选项
     target
-    log
     pthread
     "-Wl,--no-whole-archive")  #之后的库不使用--whole-archive选项
