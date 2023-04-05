@@ -20,14 +20,42 @@ int main(int argc, char *argv[])
     CmdLine *pCmd = TypeSingle<CmdLine>::getInstance();
     pCmd->add<std::vector, int>("-p", "--pid", "set target pid");
     pCmd->add<std::vector, std::string>("-l", "--link", "set libso name");
-    pCmd->add<std::vector, std::string>("-g", "--getaddr", 
+    pCmd->add<std::vector, std::string>("-ga", "--getaddr", 
                                         "get target process function addr");
+    pCmd->add<std::vector, std::string>("-sl", "--setloglevel", 
+                                        "set log level");
+    pCmd->add<std::vector, std::string>("-o", "--outputfile", 
+                                        "set output log file");
     pCmd->add("-d", "--debug", "debug mode");
     pCmd->parse(argc, argv);
 
+    std::vector<std::string> strVector;
+    bool ret = pCmd->get("--setloglevel", strVector);
+    if (ret && strVector.size())
+    {
+        for (auto &s : strVector)
+        {
+            if (s == "close")
+                Logger::setLevel(LogLevel::close);
+            else if (s == "info")
+                Logger::setLevel(LogLevel::info);
+            else if (s == "warning")
+                Logger::setLevel(LogLevel::warning);
+            else if (s == "debug")
+                Logger::setLevel(LogLevel::debug);
+            else if (s == "error")
+                Logger::setLevel(LogLevel::error);
+            else if (s == "all")
+                Logger::setLevel(LogLevel::all);
+        }
+    }
+
+    ret = pCmd->get("--outputfile", strVector);
+    if (ret && strVector.size())
+        Logger::setOutputFile(strVector[0]);
     
     std::vector<int> pidVector;
-    bool ret = pCmd->get("--pid", pidVector);
+    ret = pCmd->get("--pid", pidVector);
     if (!ret || !pidVector.size())
     {
         LOGGER_INFO << "please set --pid";
@@ -43,7 +71,7 @@ int main(int argc, char *argv[])
         infector.loadAllSoFile();
         for (auto &v : funaddrVector)
         {
-            LOGGER_INFO << LogFormat::addr << infector.getSym(v);
+            LOGGER << v << "   "<< LogFormat::addr << infector.getSym(v);
         }
         return 0;
     }

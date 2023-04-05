@@ -222,10 +222,12 @@ bool Infector::loadAllSoFile(bool update)
         return false;
 
     auto &mapInfos = pTargetOpt->getMapInfo();
+
+    LogLevel level = Logger::getLevel();
+    Logger::setLevel(LogLevel::close);
     for (auto &m : mapInfos)
-    {
         loadSoFile(m.first);
-    }
+    Logger::setLevel(level);
 
     return true;
 }
