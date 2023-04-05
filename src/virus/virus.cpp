@@ -18,34 +18,27 @@ using namespace lmc;
 int main(int argc, char *argv[])
 {
     CmdLine *pCmd = TypeSingle<CmdLine>::getInstance();
-    pCmd->add<std::vector, int>("-p", "--pid", "set target pid", std::vector<int>({1, 1000000}));
-    pCmd->add<std::vector, std::string>("-l", "--link", "set libso name", 
-                                        std::vector<std::string>());
-    pCmd->add<std::vector, std::string>("-ga", "--getaddr", 
-                                        "get target process function addr",
-                                        std::vector<std::string>());
-    pCmd->add<std::vector, std::string>("-sl", "--setloglevel", 
-                                        "set log level [info,error,debug,warning,all]",
-                                        std::vector<std::string>({"info", "error",
+    pCmd->add<std::vector>("-p", "--pid", "set target pid", 
+                            std::vector<int>({1, 1000000}));
+    pCmd->add<std::vector>("-l", "--link", "set libso name", 
+                            std::vector<std::string>(), {"--pid"});
+    pCmd->add<std::vector>("-ga", "--getfunaddr", "get target process function addr",
+                            std::vector<std::string>(), {"--pid"});
+    pCmd->add<std::vector>("-sl", "--setloglevel", "set log level",
+                            std::vector<std::string>({"info", "error",
                                         "debug", "warning", "all"}));
-    pCmd->add<std::vector, std::string>("-o", "--outputfile", 
-                                        "set output log file",
-                                        std::vector<std::string>());
-    pCmd->add<std::vector, std::string>("-ca", "--call", 
-                                        "call functoin",
-                                        std::vector<std::string>());
-    pCmd->add<std::vector, std::string>("-sa", "--setaddr", 
-                                        "set target mem addr",
-                                        std::vector<std::string>());
-    pCmd->add<std::vector, std::string>("-w", "--write", 
-                                        "write str to target mem",
-                                        std::vector<std::string>());
-    pCmd->add<std::vector, int>("-r", "--read", 
-                                "read str from target mem",
-                                std::vector<int>());
-    pCmd->add<std::vector, int>("-pa", "--param", 
-                                "set function parameter",
-                                std::vector<int>());
+    pCmd->add<std::vector>("-o", "--outputfile", "set output log file",
+                            std::vector<std::string>());
+    pCmd->add<std::vector>("-ca", "--call", "call functoin",
+                            std::vector<std::string>(), {"--pid"});
+    pCmd->add<std::vector>("-sa", "--setaddr", "set target mem addr",
+                            std::vector<std::string>(), {"--pid"});
+    pCmd->add<std::vector>("-w", "--write", "write str to target mem",
+                            std::vector<std::string>(), {"--pid", "--setaddr"});
+    pCmd->add<std::vector>("-r", "--read", "read str from target mem",
+                            std::vector<int>(), {"--pid", "--setaddr"});
+    pCmd->add<std::vector>("-pa", "--param", "set function parameter",
+                            std::vector<int>(), {"--pid", "--call"});
     pCmd->add("-d", "--debug", "debug mode");
     pCmd->parse(argc, argv);
     
