@@ -18,27 +18,37 @@ using namespace lmc;
 int main(int argc, char *argv[])
 {
     CmdLine *pCmd = TypeSingle<CmdLine>::getInstance();
-    pCmd->add<std::vector, int>("-p", "--pid", "set target pid");
-    pCmd->add<std::vector, std::string>("-l", "--link", "set libso name");
+    pCmd->add<std::vector, int>("-p", "--pid", "set target pid", std::vector<int>({1, 1000000}));
+    pCmd->add<std::vector, std::string>("-l", "--link", "set libso name", 
+                                        std::vector<std::string>());
     pCmd->add<std::vector, std::string>("-ga", "--getaddr", 
-                                        "get target process function addr");
+                                        "get target process function addr",
+                                        std::vector<std::string>());
     pCmd->add<std::vector, std::string>("-sl", "--setloglevel", 
-                                        "set log level [info,error,debug,warning,all]");
+                                        "set log level [info,error,debug,warning,all]",
+                                        std::vector<std::string>({"info", "error",
+                                        "debug", "warning", "all"}));
     pCmd->add<std::vector, std::string>("-o", "--outputfile", 
-                                        "set output log file");
+                                        "set output log file",
+                                        std::vector<std::string>());
     pCmd->add<std::vector, std::string>("-ca", "--call", 
-                                        "call functoin");
+                                        "call functoin",
+                                        std::vector<std::string>());
     pCmd->add<std::vector, std::string>("-sa", "--setaddr", 
-                                        "set target mem addr");
+                                        "set target mem addr",
+                                        std::vector<std::string>());
     pCmd->add<std::vector, std::string>("-w", "--write", 
-                                        "write str to target mem");
+                                        "write str to target mem",
+                                        std::vector<std::string>());
     pCmd->add<std::vector, int>("-r", "--read", 
-                                "read str from target mem");
+                                "read str from target mem",
+                                std::vector<int>());
     pCmd->add<std::vector, int>("-pa", "--param", 
-                                "set function parameter");
+                                "set function parameter",
+                                std::vector<int>());
     pCmd->add("-d", "--debug", "debug mode");
     pCmd->parse(argc, argv);
-
+    
     std::vector<std::string> strVector;
     bool ret = pCmd->get("--setloglevel", strVector);
     if (ret && strVector.size())
