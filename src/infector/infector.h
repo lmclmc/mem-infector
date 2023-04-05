@@ -91,10 +91,22 @@ public:
 
     /**
      * @brief 向目标进程的目标地址里面写字符串。
+     * @param addr 目标地址
+     * @param str 字符串内容
      * @return true 成功
      * @return false 失败
      */
-    bool writeStrToTarget(Elf64_Addr &, const std::string &);
+    bool writeStrToTarget(Elf64_Addr &addr, const std::string &str);
+
+    /**
+     * @brief 从目标进程的目标地址里面读取字符串。
+     * @param addr 目标地址
+     * @param str 字符串内容
+     * @param size 读取的大小
+     * @return true 成功
+     * @return false 失败
+     */
+    bool readStrFromTarget(Elf64_Addr &addr, std::string &str, int size);
 
     /**
      * @brief 将目标进程链接的动态库的符号信息加载进本进程

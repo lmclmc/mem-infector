@@ -23,9 +23,19 @@ int main(int argc, char *argv[])
     pCmd->add<std::vector, std::string>("-ga", "--getaddr", 
                                         "get target process function addr");
     pCmd->add<std::vector, std::string>("-sl", "--setloglevel", 
-                                        "set log level");
+                                        "set log level [info,error,debug,warning,all]");
     pCmd->add<std::vector, std::string>("-o", "--outputfile", 
                                         "set output log file");
+    pCmd->add<std::vector, std::string>("-ca", "--call", 
+                                        "call functoin");
+    pCmd->add<std::vector, std::string>("-sa", "--setaddr", 
+                                        "set target mem addr");
+    pCmd->add<std::vector, std::string>("-w", "--write", 
+                                        "write str to target mem");
+    pCmd->add<std::vector, int>("-r", "--read", 
+                                "read str from target mem");
+    pCmd->add<std::vector, int>("-pa", "--param", 
+                                "set function parameter");
     pCmd->add("-d", "--debug", "debug mode");
     pCmd->parse(argc, argv);
 
@@ -54,22 +64,96 @@ int main(int argc, char *argv[])
     if (ret && strVector.size())
         Logger::setOutputFile(strVector[0]);
     
-    std::vector<int> pidVector;
-    ret = pCmd->get("--pid", pidVector);
-    if (!ret || !pidVector.size())
+    std::vector<int> intVector;
+    ret = pCmd->get("--pid", intVector);
+    if (!ret || !intVector.size())
     {
         LOGGER_INFO << "please set --pid";
         return 0;
     }
-        
+ 
+    Infector infector(intVector[0], LIBC_SO);
+    ret = pCmd->get("--setaddr", strVector);
+    if (ret && strVector.size())
+    {
+        Elf64_Addr targetAddr;
+        sscanf(strVector[0].c_str(), "%lx", &targetAddr);
+        LOGGER << LogFormat::addr << "targetAddr = " << targetAddr;
+        infector.attachTarget();
+
+        ret = pCmd->get("--write", strVector);
+        if (ret && strVector.size())
+        {
+            if (infector.writeStrToTarget(targetAddr, strVector[0]))
+            {
+                LOGGER << "write " << strVector[0] << " successful";
+            }
+            else
+            {
+                LOGGER << "write " << strVector[0] << " failed";
+            }
+        }
+
+        ret = pCmd->get("--read", intVector);
+        if (ret && intVector.size())
+        {
+            std::string str;
+            if (infector.readStrFromTarget(targetAddr, str, intVector[0]))
+            {
+                LOGGER << "read " << str << " successful";
+            }
+            else
+            {
+                LOGGER << "read " << str << " failed";
+            }
+        }
+    }
+
+    ret = pCmd->get("--call", strVector);
+    if (ret && strVector.size())
+    {
+        ret = pCmd->get("--param", intVector);
+        infector.loadAllSoFile();
+        if (!infector.attachTarget())
+        {
+            LOGGER_ERROR << "attachTarget";
+            return 0;
+        }
+        Elf64_Addr addr = infector.getSym(strVector[0]);
+        if (!addr)
+        {
+            LOGGER_ERROR << "function parse failed";
+            return 0;
+        }
+
+        LOGGER << strVector[0] << "   "<< LogFormat::addr << addr;
+
+        for (int i = 0; i < 5; i++)
+            intVector.push_back(0);
+
+        Elf64_Addr ret = infector.callRemoteFunc(addr, intVector[0],
+                                                 intVector[1],
+                                                 intVector[2],
+                                                 intVector[3],
+                                                 intVector[4],
+                                                 intVector[5]);
+        if (ret)
+        {
+            LOGGER << "call " << strVector[0] << " successful " 
+                   << "ret =  "<< LogFormat::addr << ret;
+        }
+        else
+        {
+            LOGGER << "call " << strVector[0] << " failed";
+        }
+    }
+
     
-    std::vector<std::string> funaddrVector;
-    Infector infector(pidVector[0], LIBC_SO);
-    ret = pCmd->get("--getaddr", funaddrVector);
+    ret = pCmd->get("--getaddr", strVector);
     if (ret)
     {
         infector.loadAllSoFile();
-        for (auto &v : funaddrVector)
+        for (auto &v : strVector)
         {
             LOGGER << v << "   "<< LogFormat::addr << infector.getSym(v);
         }
@@ -78,21 +162,25 @@ int main(int argc, char *argv[])
 
     if (pCmd->get("--debug"))
     {
-        Infector infector1(pidVector[0], LIBC_SO);
+        Infector infector1(intVector[0], LIBC_SO);
         infector1.loadSoFile(LIBC_SO);
         return 0;
     }
     std::vector<std::string> linkVector;
     ret = pCmd->get("--link", linkVector);
-    if (!infector.attachTarget())
+    if (ret && linkVector.size())
     {
-        LOGGER_ERROR << "attachTarget";
-        return 0;
+        if (!infector.attachTarget())
+        {
+            LOGGER_ERROR << "attachTarget";
+            return 0;
+        }
+
+        infector.injectEvilSoname(linkVector[0]);
+
+        infector.injectSysTableInit();
     }
-
-    infector.injectEvilSoname(linkVector[0]);
-
-    infector.injectSysTableInit();
+    
 
     if (!infector.detachTarget())
     {

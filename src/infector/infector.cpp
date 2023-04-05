@@ -316,6 +316,14 @@ bool Infector::injectEvilSoname(const std::string &evilsoname)
     return true;
 }
 
+bool Infector::readStrFromTarget(Elf64_Addr &addr, std::string &str, int size)
+{
+    char buffer[MEM_SIZE] = {0};
+    bool ret = pTargetOpt->readTarget(addr, (void *)buffer, size);
+    str = buffer;
+    return ret;
+}
+
 bool Infector::writeStrToTarget(Elf64_Addr &addr, const std::string &str)
 {
     return pTargetOpt->writeTarget(addr, (void *)str.c_str(), str.size());
