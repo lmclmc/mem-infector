@@ -18,27 +18,21 @@ using namespace lmc;
 int main(int argc, char *argv[])
 {
     CmdLine *pCmd = TypeSingle<CmdLine>::getInstance();
-    pCmd->add<std::vector>("-p", "--pid", "set target pid", 
-                            std::vector<int>({1, 1000000}));
-    pCmd->add<std::vector>("-l", "--link", "set libso name", 
-                            std::vector<std::string>(), {"--pid"});
-    pCmd->add<std::vector>("-ga", "--getfunaddr", "get target process function addr",
-                            std::vector<std::string>(), {"--pid"});
-    pCmd->add<std::vector>("-sl", "--setloglevel", "set log level",
+    pCmd->add<std::vector, int>("-p", "--pid", "set target pid", {}, {1, 1000000});
+    pCmd->add<std::list, std::string>("-l", "--link", "set libso name", 
+                                      {"--pid"});
+    pCmd->add<std::vector, std::string>("-ga", "--getfunaddr", 
+                            "get target process function addr", {"--pid"});
+    pCmd->add<std::vector, std::string>("-sl", "--setloglevel", 
+                            "set log level", {},
                             std::vector<std::string>({"info", "error",
                                         "debug", "warning", "all"}));
-    pCmd->add<std::vector>("-o", "--outputfile", "set output log file",
-                            std::vector<std::string>());
-    pCmd->add<std::vector>("-ca", "--call", "call functoin",
-                            std::vector<std::string>(), {"--pid"});
-    pCmd->add<std::vector>("-sa", "--setaddr", "set target mem addr",
-                            std::vector<std::string>(), {"--pid"});
-    pCmd->add<std::vector>("-w", "--write", "write str to target mem",
-                            std::vector<std::string>(), {"--pid", "--setaddr"});
-    pCmd->add<std::vector>("-r", "--read", "read str from target mem",
-                            std::vector<int>(), {"--pid", "--setaddr"});
-    pCmd->add<std::vector>("-pa", "--param", "set function parameter",
-                            std::vector<int>(), {"--pid", "--call"});
+    pCmd->add<std::vector, std::string>("-o", "--outputfile", "set output log file");
+    pCmd->add<std::vector, std::string>("-ca", "--call", "call functoin", {"--pid"});
+    pCmd->add<std::vector, std::string>("-sa", "--setaddr", "set target mem addr", {"--pid"});
+    pCmd->add<std::vector, std::string>("-w", "--write", "write str to target mem", {"--pid", "--setaddr"});
+    pCmd->add<std::vector, int>("-r", "--read", "read str from target mem", {"--pid", "--setaddr"});
+    pCmd->add<std::vector, std::string>("-pa", "--param", "set function parameter",{"--pid", "--call"});
     pCmd->add("-d", "--debug", "debug mode");
     pCmd->parse(argc, argv);
     
@@ -152,7 +146,7 @@ int main(int argc, char *argv[])
     }
 
     
-    ret = pCmd->get("--getaddr", strVector);
+    ret = pCmd->get("--getfunaddr", strVector);
     if (ret)
     {
         infector.loadAllSoFile();
@@ -169,9 +163,9 @@ int main(int argc, char *argv[])
         infector1.loadSoFile(LIBC_SO);
         return 0;
     }
-    std::vector<std::string> linkVector;
-    ret = pCmd->get("--link", linkVector);
-    if (ret && linkVector.size())
+    std::list<std::string> linkList;
+    ret = pCmd->get("--link", linkList);
+    if (ret && linkList.size())
     {
         if (!infector.attachTarget())
         {
@@ -179,7 +173,7 @@ int main(int argc, char *argv[])
             return 0;
         }
 
-        infector.injectEvilSoname(linkVector[0]);
+        infector.injectEvilSoname(linkList.front());
 
         infector.injectSysTableInit();
     }
