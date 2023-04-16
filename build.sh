@@ -10,7 +10,8 @@ rm -rf ${BASE_BUILD_DIR}
 mkdir ${BASE_BUILD_DIR}
 pushd ${BASE_BUILD_DIR}
 
-cmake ${BASE_DIR} -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-std=gnu++11"
+cmake ${BASE_DIR} -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-std=gnu++11"\
+                  -DCMAKE_INCLUDE_PATH="${BASE_BUILD_DIR}"
 make -j${CPU_NUM}
 make install
 popd

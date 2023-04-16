@@ -1,3 +1,5 @@
+#include "version.h"
+
 #include "infector/infector.h"
 #include "cmdline/cmdline.h"
 #include "single/single.hpp"
@@ -34,10 +36,18 @@ int main(int argc, char *argv[])
     pCmd->add<std::vector<int>>("-r", "--read", "read str from target mem", {"--pid", "--setaddr"});
     pCmd->add<std::vector<std::string>>("-pa", "--param", "set function parameter",{"--pid", "--call"});
     pCmd->add("-d", "--debug", "debug mode");
-    pCmd->parse(argc, argv);
+    pCmd->add("-v", "--version", "get version");
+    pCmd->parse(false, argc, argv);
+
+    bool ret = pCmd->get("--version");
+    if (ret)
+    {
+        std::cout << "version: " << PROJECT_VERSION << std::endl;
+        exit(0);
+    }
     
     std::vector<std::string> strVector;
-    bool ret = pCmd->get("--setloglevel", strVector);
+    ret = pCmd->get("--setloglevel", strVector);
     if (ret && strVector.size())
     {
         for (auto &s : strVector)
