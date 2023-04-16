@@ -25,4 +25,5 @@ cmake ${CURRENT_DIR} -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-std=gnu++11"\
                      -DCMAKE_LIBRARY_PATH="${BASE_BUILD_DIR}install/lib/"
 #-DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-std=c++11"
 make -j${CPU_NUM}
+make install
 popd
