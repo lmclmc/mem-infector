@@ -1,15 +1,12 @@
 cmake_minimum_required(VERSION 3.2)
 
 add_subdirectory(infector/)
-add_subdirectory(virus/)
 add_subdirectory(inject/)
 add_subdirectory(target/)
 add_subdirectory(xed/)
 
 install(FILES ${PROJECT_BINARY_DIR}/src/inject/libinject.so DESTINATION 
               ${PROJECT_BINARY_DIR}/install/lib/)
-install(FILES ${PROJECT_BINARY_DIR}/src/virus/virus DESTINATION 
-              ${PROJECT_BINARY_DIR}/install/bin/)
 install(FILES ${PROJECT_BINARY_DIR}/src/target/libtarget.a DESTINATION 
               ${PROJECT_BINARY_DIR}/install/lib/)
 install(FILES ${PROJECT_BINARY_DIR}/src/infector/libinfector.a DESTINATION 
