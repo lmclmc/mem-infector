@@ -3,10 +3,9 @@
 ## How to build the examples:
 
 ```shell
-  mkdir build
-  cd build
-  cmake ..
-  make
+  git submodule init
+  git submodule update
+  ./build.sh
 ```
 
 ## How to use:

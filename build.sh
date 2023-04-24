@@ -1,5 +1,12 @@
 #!/bin/bash
 
+git submodule init
+git submodule update
+
+pushd base
+    git pull origin master
+popd
+
 CURRENT_DIR=$(pwd)
 BASE_BUILD_DIR=${CURRENT_DIR}/base_build/
 BUILD_DIR=${CURRENT_DIR}/build/
