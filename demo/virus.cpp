@@ -2,7 +2,7 @@
 
 #include "infector/infector.h"
 #include "cmdline/cmdline.h"
-#include "single/single.hpp"
+#include "util/single.hpp"
 #include "log/log.h"
 
 #include <elf.h>

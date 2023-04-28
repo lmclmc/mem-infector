@@ -1,6 +1,6 @@
 #include "infector.h"
 #include "target/targetopt.h"
-#include "single/single.hpp"
+#include "util/single.hpp"
 #include "elfopt.h"
 #include "log/log.h"
 extern "C"
@@ -109,7 +109,9 @@ bool Infector::updateTarget()
     newCode[2] = 0xcc;
     memset(&newCode[3], 0x90, sizeof(newCode) - 3);
 
-    if (!pTargetOpt->writeTarget(pNewRegs->rip, CALL_RAX_CMD, strlen(CALL_RAX_CMD)))
+    if (!pTargetOpt->writeTarget(pNewRegs->rip, 
+                                 CALL_RAX_CMD, 
+                                 strlen(CALL_RAX_CMD)))
         return false;
 
     if (!pTargetOpt->writeTarget(*pNewRegs))
@@ -154,7 +156,9 @@ long Infector::restoreTarget()
 
     Elf64_Addr retAddr = pNewRegs->rax;
 
-    if (!pTargetOpt->writeTarget(pOrigRegs->rip, backupCode, sizeof(backupCode)))
+    if (!pTargetOpt->writeTarget(pOrigRegs->rip, 
+                                 backupCode, 
+                                 sizeof(backupCode)))
         return 0;
 
     if (!pTargetOpt->writeTarget(*pOrigRegs))
@@ -168,7 +172,8 @@ bool Infector::stepTarget()
     return pTargetOpt->stepTarget();
 }
 
-Elf64_Addr Infector::getSym(const std::string &symname, const std::string &soname)
+Elf64_Addr Infector::getSym(const std::string &symname, 
+                            const std::string &soname)
 {
     Elf64Wrapper *pElf = TypeSingle<Elf64Wrapper>::getInstance();
     std::string soAllPath = "";
@@ -205,7 +210,8 @@ Elf64_Addr Infector::getSym(const std::string &symname, const std::string &sonam
             if (soAllPath.empty())
                 return false;
 
-            soMap.insert(std::pair<std::string, std::string>(soname, soAllPath));
+            soMap.insert(std::pair<std::string, std::string>(soname, 
+                                                             soAllPath));
             it = soMap.find(soname);
         }
         
