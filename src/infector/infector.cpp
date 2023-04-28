@@ -103,12 +103,6 @@ bool Infector::backupTarget()
 
 bool Infector::updateTarget()
 {
-    unsigned char newCode[8] = {0};
-    newCode[0] = 0xff;
-    newCode[1] = 0xd0;
-    newCode[2] = 0xcc;
-    memset(&newCode[3], 0x90, sizeof(newCode) - 3);
-
     if (!pTargetOpt->writeTarget(pNewRegs->rip, 
                                  CALL_RAX_CMD, 
                                  strlen(CALL_RAX_CMD)))
