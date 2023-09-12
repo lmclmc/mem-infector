@@ -2,16 +2,12 @@
 
 #include <thread>
 
-Inject *gInject = nullptr;
+Inject *Inject::gInject = nullptr;
 Elf64_Addr Inject::syscallTable[100] = {0};
 
 Inject::Inject()
 {
     gInject = this;
-    std::thread([gInject]{
-        if (gInject)
-            gInject->evilMain();
-    }).detach();
 }
 
 Inject::~Inject()

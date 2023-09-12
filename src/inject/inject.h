@@ -54,6 +54,7 @@ private:
     void setForkAddr(Elf64_Addr);
 private:
     static Elf64_Addr syscallTable[100];
+    static Inject *gInject;
 };
 
 #endif

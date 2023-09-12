@@ -145,6 +145,7 @@ pid_t EvilUser::evilFork(pid_t pid)
     char buffer[128] = {0};
     sprintf(buffer, "pid = %d\n", pid);
     echo_printf(buffer, strlen(buffer));
+    return 0;
 }
 
 ssize_t EvilUser::evilWrite(int fd, const void *buf, size_t count)
@@ -184,6 +185,7 @@ int EvilUser::evilExecve(const char *pathname, char *const argv[],
     //     echo_printf(argv[i]);
     //     echo_printf("\n");
     // }
+    return 0;
 }
 
 void echo_printf(const char *src, int len)
