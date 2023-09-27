@@ -131,7 +131,8 @@ public:
      * @param soname 指定动态库名称,当动态库为空时，搜索全局符号
      * @return long 目标进程内部的符号地址
      */
-    Elf64_Addr getSym(const std::string &symname, const std::string &soname = "");
+    Elf64_Addr getSymAddr(const std::string &symname, 
+                          const std::string &soname = "");
 
     /**
      * @brief 在目标进程内部注入线程

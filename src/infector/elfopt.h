@@ -2,7 +2,6 @@
 #define ELFOPT_H_
 
 #include <string>
-#include <vector>
 #include <map>
 #include <memory>
 #include <elf.h>
@@ -19,35 +18,42 @@ typedef struct {
     std::string symbol_index;
     std::intptr_t symbol_value;
     int symbol_num = 0, symbol_size = 0;
-    std::string symbol_type, symbol_bind, symbol_visibility, symbol_name, symbol_section;      
+    std::string symbol_type, symbol_bind;
+    std::string symbol_visibility;
+    std::string symbol_name;
+    std::string symbol_section;      
 } Symbol;
 
 class Elf64Section
 {
     friend class Elf64Wrapper;
 public:
-    virtual void pushSection(uint8_t *, Section &, Elf64_Addr){}
+    virtual void pushSection(uint8_t *, Section &section, Elf64_Addr)
+    {
+        sectionAddr = section.section_addr;
+    }
 
-private:
-    static void setNull();
+    uint64_t getSectionAddr()
+    {
+        return sectionAddr;
+    }
 
 protected:
     static char *pDynstr;
+    uint64_t sectionAddr;
+
+private:
+    static void setNull();
 };
 
 class Elf64DynsymSection final: public Elf64Section
 {
 public:
-    using SymTab = std::map<std::string, long>;
-    using SymTabs = std::map<std::string, SymTab>;
+    using SymTab = std::map<std::string, Symbol>;
 
     void pushSection(uint8_t *, Section &, Elf64_Addr) override;
 
-    long getSym(const std::string &, const std::string &);
-
-    void insertSoname(const std::string &);
-
-    void clearAllSyms();
+    long getSymAddr(const std::string &);
 
 private:
     std::string getSymbolType(uint8_t &);
@@ -56,30 +62,43 @@ private:
     std::string getSymbolIndex(uint16_t &);
 
 private:
-    SymTabs symTabs;
-    std::string soname;
+    SymTab symTab;
 };
 
-class Elf64StrtabSection final: public Elf64Section
+class Elf64DynstrSection final : public Elf64Section
 {
 public:
-    void pushSection(uint8_t *, Section &, Elf64_Addr = 0) override;
+    void pushSection(uint8_t *, Section &, Elf64_Addr) override;
+};
+
+class Elf64SectionWrapper
+{
+    using SecTab = std::map<std::string, std::shared_ptr<Elf64Section>>;
+public:
+    Elf64SectionWrapper();
+    SecTab &getSecTab();
+
+private:
+    SecTab mSecTab;
 };
 
 class Elf64Wrapper
 {
 public:
-    Elf64Wrapper();
+    Elf64Wrapper() : pMmap(nullptr),
+                     mFd(0){}
     bool loadSo(const std::string &, Elf64_Addr);
 
-    long getSym(const std::string &, const std::string &);
+    long getSymAddr(const std::string &, const std::string &);
+
+    long getSectionAddr(const std::string &, const std::string &);
 
     void clearAllSyms();
 
-private:
+public:
     uint8_t *pMmap;
     int mFd;
 
-    std::vector<std::shared_ptr<Elf64Section>> mSecTab;
+    std::map<std::string, std::shared_ptr<Elf64SectionWrapper>> mSecWrapperTab;
 };
 #endif

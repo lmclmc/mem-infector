@@ -9,15 +9,33 @@
 #include <errno.h>
 #include <string.h>
 
-#define MAX_SECTIONS 20
+#define SECTION_DYNSTR_STR ".dynstr"
+#define SECTION_DYNSYM_STR ".dynsym"
 
-Elf64Wrapper::Elf64Wrapper() :
-    pMmap(nullptr),
-    mFd(0)
+Elf64SectionWrapper::Elf64SectionWrapper()
 {
-    mSecTab.resize(MAX_SECTIONS);
-    mSecTab[SHT_STRTAB] = std::make_shared<Elf64StrtabSection>();
-    mSecTab[SHT_DYNSYM] = std::make_shared<Elf64DynsymSection>();
+    mSecTab[SECTION_DYNSTR_STR] = std::make_shared<Elf64DynstrSection>();
+    mSecTab[SECTION_DYNSYM_STR] = std::make_shared<Elf64DynsymSection>();
+}
+
+Elf64SectionWrapper::SecTab &Elf64SectionWrapper::getSecTab()
+{
+    return mSecTab;
+}
+
+long Elf64Wrapper::getSectionAddr(const std::string &soname, 
+                                  const std::string &sectionName)
+{
+    auto pSecWrapper = mSecWrapperTab[soname];
+    if (pSecWrapper)
+    {
+        auto &pSecTab = pSecWrapper->getSecTab();
+        if (pSecTab.find(sectionName) != pSecTab.end())
+        {
+            return pSecTab[sectionName]->getSectionAddr();
+        }
+    }
+    return 0;
 }
 
 bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
@@ -38,7 +56,8 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
         return false;
     }
 
-    pMmap = static_cast<uint8_t*>(mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, mFd, 0));
+    pMmap = static_cast<uint8_t*>(mmap(NULL, st.st_size, 
+                                       PROT_READ, MAP_PRIVATE, mFd, 0));
     if (pMmap == MAP_FAILED) 
     {
         LOGGER_ERROR << "mmap: " << strerror(errno);
@@ -52,11 +71,11 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
         return false;
     }
 
-    auto pDyn = std::dynamic_pointer_cast<Elf64DynsymSection>(mSecTab[SHT_DYNSYM]);
-    if (pDyn == nullptr)
-        return false;
+    if (!mSecWrapperTab[soname])
+        mSecWrapperTab[soname] = std::make_shared<Elf64SectionWrapper>();
 
-    pDyn->insertSoname(soname);
+    auto pSecWrapper = mSecWrapperTab[soname];
+    auto &pSecTable = pSecWrapper->getSecTab();
 
     Elf64_Shdr *sHdr = (Elf64_Shdr*)(pMmap + eHdr->e_shoff);
     int shnum = eHdr->e_shnum;
@@ -76,11 +95,13 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
         section.section_ent_size = sHdr[i].sh_entsize;
         section.section_addr_align = sHdr[i].sh_addralign;
 
-        if (sHdr[i].sh_type < MAX_SECTIONS && 
-            mSecTab[sHdr[i].sh_type] != nullptr)
+        if (!pSecTable[section.section_name])
         {
-            mSecTab[sHdr[i].sh_type]->pushSection(pMmap, section, baseAddr);
+            pSecTable[section.section_name] = std::make_shared<Elf64Section>();
         }
+        pSecTable[section.section_name]->pushSection(pMmap, 
+                                                     section, 
+                                                     baseAddr);
     }
 
     for (int i = 0; i < shnum; ++i) 
@@ -95,14 +116,16 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
         section.section_ent_size = sHdr[i].sh_entsize;
         section.section_addr_align = sHdr[i].sh_addralign;
         
-        if (sHdr[i].sh_type < MAX_SECTIONS && 
-            mSecTab[sHdr[i].sh_type] != nullptr)
+        if (!pSecTable[section.section_name])
         {
-            mSecTab[sHdr[i].sh_type]->pushSection(pMmap, section, baseAddr);
+            pSecTable[section.section_name] = std::make_shared<Elf64Section>();
         }
+
+        pSecTable[section.section_name]->pushSection(pMmap, 
+                                                     section, 
+                                                     baseAddr);
     }
     close(mFd);
-
     return true;
 }
 
@@ -166,57 +189,45 @@ std::string Elf64DynsymSection::getSymbolIndex(uint16_t &sym_idx)
 }
 
 void Elf64DynsymSection::pushSection(uint8_t *pMmap, 
-                                     Section &sec, Elf64_Addr baseAddr)
+                                     Section &section, 
+                                     Elf64_Addr baseAddr)
 {
-    auto total_syms = sec.section_size / sizeof(Elf64_Sym);
-    auto syms_data = (Elf64_Sym*)(pMmap + sec.section_offset);
-
-    auto symTab = symTabs.find(soname);
-    if (symTab == symTabs.end())
-        return;
+    sectionAddr = section.section_addr;
+    auto total_syms = section.section_size / sizeof(Elf64_Sym);
+    auto syms_data = (Elf64_Sym*)(pMmap + section.section_offset);
 
     Symbol symbol;
     for (int i = 0; i < total_syms; ++i) {
-        if (sec.section_type != SHT_DYNSYM) continue;
+        if (section.section_type != SHT_DYNSYM) continue;
         symbol.symbol_num       = i;
-        symbol.symbol_value     = syms_data[i].st_value;
+        symbol.symbol_value     = syms_data[i].st_value + baseAddr;
         symbol.symbol_size      = syms_data[i].st_size;
         symbol.symbol_type      = getSymbolType(syms_data[i].st_info);
         symbol.symbol_bind      = getSymbolBind(syms_data[i].st_info);
         symbol.symbol_visibility= getSymbolVisibility(syms_data[i].st_other);
         symbol.symbol_index     = getSymbolIndex(syms_data[i].st_shndx);
-        symbol.symbol_section   = sec.section_name;  
+        symbol.symbol_section   = section.section_name;  
 
         if (pDynstr == nullptr) return;
         
         symbol.symbol_name = std::string(pDynstr + syms_data[i].st_name);
-        symTab->second.insert(std::pair<std::string, long>(symbol.symbol_name, 
-                                                    baseAddr+symbol.symbol_value));
+        symTab.insert(std::pair<std::string, Symbol>(symbol.symbol_name, 
+                                                     symbol));
     }
 }
 
-void Elf64DynsymSection::insertSoname(const std::string &soname_)
+long Elf64Wrapper::getSymAddr(const std::string &soname, 
+                              const std::string &symname)
 {
-    auto symTab = symTabs.find(soname_);
-    if (symTab != symTabs.end())
-        return;
-
-    soname = soname_;
-    symTabs.insert(std::pair<std::string, SymTab>(soname_, SymTab()));
-}
-
-void Elf64DynsymSection::clearAllSyms()
-{
-    symTabs.clear();
-}
-
-long Elf64Wrapper::getSym(const std::string &soname, 
-                          const std::string &symname)
-{
-    auto pDyn = std::dynamic_pointer_cast<Elf64DynsymSection>(mSecTab[SHT_DYNSYM]);
-    if (pDyn != nullptr)
+    auto pSecWrapper = mSecWrapperTab[soname];
+    if (pSecWrapper)
     {
-        return pDyn->getSym(soname, symname);
+        auto pSec = std::dynamic_pointer_cast<Elf64DynsymSection>(
+                         pSecWrapper->getSecTab()[SECTION_DYNSYM_STR]);
+        if (pSec)
+        {
+            return pSec->getSymAddr(symname);
+        }
     }
 
     return 0;
@@ -224,29 +235,20 @@ long Elf64Wrapper::getSym(const std::string &soname,
 
 void Elf64Wrapper::clearAllSyms()
 {
-    auto pDyn = std::dynamic_pointer_cast<Elf64DynsymSection>(mSecTab[SHT_DYNSYM]);
-    if (pDyn != nullptr)
-    {
-        return pDyn->clearAllSyms();
-    }
+    mSecWrapperTab.clear();
 }
 
-long Elf64DynsymSection::getSym(const std::string &soname, 
-                                const std::string &symname)
+long Elf64DynsymSection::getSymAddr(const std::string &symname)
 {
-    SymTabs::iterator its;
-    SymTab::iterator it;
-    if ((its = symTabs.find(soname)) != symTabs.end())
-    {
-        if ((it = its->second.find(symname)) != its->second.end())
-            return it->second;
-    }
+    if (symTab.find(symname) != symTab.end())
+        return symTab[symname].symbol_value;
 
     return 0;
 }
 
-void Elf64StrtabSection::pushSection(uint8_t *pMmap, Section &sec, Elf64_Addr)
+void Elf64DynstrSection::pushSection(uint8_t *pMmap, 
+                                     Section &section, Elf64_Addr)
 {
-    if (sec.section_name == ".dynstr")
-        pDynstr = (char *)pMmap + sec.section_offset;
+    sectionAddr = section.section_addr;
+    pDynstr = (char *)pMmap + section.section_offset;
 }

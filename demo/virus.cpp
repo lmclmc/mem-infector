@@ -4,6 +4,7 @@
 #include "cmdline/cmdline.h"
 #include "util/single.hpp"
 #include "log/log.h"
+#include "infector/editso.h"
 
 #include <elf.h>
 #include <dlfcn.h>
@@ -34,6 +35,10 @@ int main(int argc, char *argv[])
     pCmd->add<int>("-r", "--read", "read str from target mem", 
                   {"--pid", "--setaddr"});
     pCmd->add("-ho", "--hook", "hook syscall", {"--pid", "--link"});
+    pCmd->add<std::string>("-od", "--old_dynsymstr", "input old dynsym name");
+    pCmd->add<std::string>("-nd", "--new_dynsymstr", "input new dynsym name", {"-od"});
+    pCmd->add<std::string>("-so", "--soname", "input so name", {"-nd", "-od"});
+    pCmd->add<std::string>("-ou", "--output_so", "output so name", {"-so", "-nd", "-od"});
     pCmd->add("-v", "--version", "get version");
 
     pCmd->parse(false, argc, argv);
@@ -45,6 +50,7 @@ int main(int argc, char *argv[])
         exit(0);
     }
     
+    Logger::setLevel(LogLevel::all);
     std::string logStr;
     ret = pCmd->get("--setloglevel", logStr);
     if (ret && !logStr.empty())
@@ -62,6 +68,24 @@ int main(int argc, char *argv[])
         else if (logStr == "all")
             Logger::setLevel(LogLevel::all);
     }
+
+    std::string old_dynsymStr = "";
+    std::string new_dynsymStr = "";
+    std::string soname = "";
+    std::string output_soname = "";
+    if (pCmd->get("-od", old_dynsymStr) &&
+        pCmd->get("-nd", new_dynsymStr) &&
+        pCmd->get("-so", soname) &&
+        pCmd->get("-ou", output_soname))
+    {
+        EditSo editSo;
+        editSo.replaceSoDynsym(old_dynsymStr,
+                               new_dynsymStr,
+                               soname,
+                               output_soname);
+        return 0;
+    }
+    
 
     std::string outputfileStr;
     ret = pCmd->get("--outputfile", outputfileStr);
@@ -121,7 +145,7 @@ int main(int argc, char *argv[])
     if (ret)
     {
         infector.loadAllSoFile();
-        LOGGER << LogFormat::addr << infector.getSym(funaddrStr);
+        LOGGER << LogFormat::addr << infector.getSymAddr(funaddrStr);
         return 0;
     }
 
