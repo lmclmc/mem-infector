@@ -4,6 +4,8 @@
 #include <string>
 #include <map>
 #include <memory>
+#include <list>
+#include <functional>
 #include <elf.h>
 
 typedef struct {
@@ -15,13 +17,16 @@ typedef struct {
 } Section;
 
 typedef struct {
-    std::string symbol_index;
-    std::intptr_t symbol_value;
+    uint16_t symbol_index = 0;
+    std::string symbol_index_str = "";
+    std::intptr_t symbol_value = 0;
     int symbol_num = 0, symbol_size = 0;
-    std::string symbol_type, symbol_bind;
-    std::string symbol_visibility;
-    std::string symbol_name;
-    std::string symbol_section;      
+    unsigned char symbol_info = 0, symbol_other = 0;
+    std::string symbol_type = "", symbol_bind = "";
+    std::string symbol_visibility = "";
+    uint64_t symbol_name_addr = 0;
+    std::string symbol_name = "";
+    std::string symbol_section = "";      
 } Symbol;
 
 class Elf64Section
@@ -49,11 +54,13 @@ private:
 class Elf64DynsymSection final: public Elf64Section
 {
 public:
-    using SymTab = std::map<std::string, Symbol>;
+    using SymTab = std::list<Symbol>;
 
     void pushSection(uint8_t *, Section &, Elf64_Addr) override;
 
     long getSymAddr(const std::string &);
+
+    SymTab &getSymTab();
 
 private:
     std::string getSymbolType(uint8_t &);
@@ -92,6 +99,8 @@ public:
     long getSymAddr(const std::string &, const std::string &);
 
     long getSectionAddr(const std::string &, const std::string &);
+
+    Elf64DynsymSection::SymTab &getDynsymTab(const std::string &);
 
     void clearAllSyms();
 

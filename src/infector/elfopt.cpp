@@ -38,6 +38,18 @@ long Elf64Wrapper::getSectionAddr(const std::string &soname,
     return 0;
 }
 
+Elf64DynsymSection::SymTab &Elf64Wrapper::getDynsymTab(
+                                          const std::string &soname)
+{
+    auto pSecWrapper = mSecWrapperTab[soname];
+    if (pSecWrapper)
+    {
+        auto pDynSymSec = std::dynamic_pointer_cast<Elf64DynsymSection>(
+                               pSecWrapper->getSecTab()[SECTION_DYNSYM_STR]);
+        return pDynSymSec->getSymTab();
+    }
+}
+
 bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
 {
     struct stat st;
@@ -199,20 +211,23 @@ void Elf64DynsymSection::pushSection(uint8_t *pMmap,
     Symbol symbol;
     for (int i = 0; i < total_syms; ++i) {
         if (section.section_type != SHT_DYNSYM) continue;
-        symbol.symbol_num       = i;
-        symbol.symbol_value     = syms_data[i].st_value + baseAddr;
-        symbol.symbol_size      = syms_data[i].st_size;
-        symbol.symbol_type      = getSymbolType(syms_data[i].st_info);
-        symbol.symbol_bind      = getSymbolBind(syms_data[i].st_info);
-        symbol.symbol_visibility= getSymbolVisibility(syms_data[i].st_other);
-        symbol.symbol_index     = getSymbolIndex(syms_data[i].st_shndx);
-        symbol.symbol_section   = section.section_name;  
+        symbol.symbol_num        = i;
+        symbol.symbol_value      = syms_data[i].st_value + baseAddr;
+        symbol.symbol_size       = syms_data[i].st_size;
+        symbol.symbol_info       = syms_data[i].st_info;
+        symbol.symbol_other       = syms_data[i].st_other;
+        symbol.symbol_type       = getSymbolType(syms_data[i].st_info);
+        symbol.symbol_bind       = getSymbolBind(syms_data[i].st_info);
+        symbol.symbol_visibility = getSymbolVisibility(syms_data[i].st_other);
+        symbol.symbol_index_str  = getSymbolIndex(syms_data[i].st_shndx);
+        symbol.symbol_index      = syms_data[i].st_shndx;
+        symbol.symbol_section    = section.section_name;  
 
         if (pDynstr == nullptr) return;
-        
+
+        symbol.symbol_name_addr = syms_data[i].st_name;
         symbol.symbol_name = std::string(pDynstr + syms_data[i].st_name);
-        symTab.insert(std::pair<std::string, Symbol>(symbol.symbol_name, 
-                                                     symbol));
+        symTab.emplace_back(symbol);
     }
 }
 
@@ -222,11 +237,11 @@ long Elf64Wrapper::getSymAddr(const std::string &soname,
     auto pSecWrapper = mSecWrapperTab[soname];
     if (pSecWrapper)
     {
-        auto pSec = std::dynamic_pointer_cast<Elf64DynsymSection>(
-                         pSecWrapper->getSecTab()[SECTION_DYNSYM_STR]);
-        if (pSec)
+        auto pDynSymSec = std::dynamic_pointer_cast<Elf64DynsymSection>(
+                               pSecWrapper->getSecTab()[SECTION_DYNSYM_STR]);
+        if (pDynSymSec)
         {
-            return pSec->getSymAddr(symname);
+            return pDynSymSec->getSymAddr(symname);
         }
     }
 
@@ -240,10 +255,18 @@ void Elf64Wrapper::clearAllSyms()
 
 long Elf64DynsymSection::getSymAddr(const std::string &symname)
 {
-    if (symTab.find(symname) != symTab.end())
-        return symTab[symname].symbol_value;
+    for (auto &l : symTab)
+    {
+        if (l.symbol_name == symname)
+            return l.symbol_value;
+    }
 
     return 0;
+}
+
+Elf64DynsymSection::SymTab &Elf64DynsymSection::getSymTab()
+{
+    return symTab;
 }
 
 void Elf64DynstrSection::pushSection(uint8_t *pMmap, 

@@ -12,7 +12,8 @@ public:
     bool replaceSoDynsym(const std::string &old_name,
                          const std::string &new_name,
                          const std::string &soname,
-                         const std::string &output_soname);
+                         const std::string &output_soname,
+                         uint32_t shift2 = 0xf);
 };
 
 #endif
