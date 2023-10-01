@@ -124,6 +124,40 @@ static void writeDefDynsym(int fd, std::list<Symbol> &dynsymTab)
     }
 }
 
+static void updateRelasym(int fd, uint32_t relaBaseOffset, 
+                          std::list<Symbol> &dynsymTab, int ndx)
+{
+    uint64_t idx = ndx;
+    int count = 0;
+    for (auto &d : dynsymTab)
+    {
+        for (auto &m : d.symbol_rela_table)
+        {
+            m.second.r_info =  (idx << 32) | 
+                               (m.second.r_info & 0xffffffff);
+            lseek(fd, relaBaseOffset + sizeof(Elf64_Rela) * m.first, 
+                  SEEK_SET);
+            write(fd, &m.second, sizeof(Elf64_Rela));
+        }
+        // if (d.symbol_rela_idx >= 0)
+        // {
+        //     d.symbol_rela.r_info =  (idx << 32) | 
+        //                             (d.symbol_rela.r_info & 0xffffffff);
+        //     // LOGGER_INFO << LogFormat::addr << (relaBaseOffset + sizeof(Elf64_Rela) * d.symbol_rela_idx);
+        //     // LOGGER_INFO << d.symbol_rela.r_offset;
+        //     // LOGGER_INFO << d.symbol_rela.r_info;
+        //     //LOGGER_INFO << LogFormat::num << d.symbol_rela_idx;
+            
+        //     lseek(fd, relaBaseOffset + sizeof(Elf64_Rela) * d.symbol_rela_idx, 
+        //           SEEK_SET);
+        //     write(fd, &d.symbol_rela, sizeof(Elf64_Rela));
+        //     count++;
+        // }
+
+        idx++;
+    }
+}
+
 bool EditSo::replaceSoDynsym(const std::string &old_name,
                              const std::string &new_name,
                              const std::string &soname,
@@ -137,7 +171,7 @@ bool EditSo::replaceSoDynsym(const std::string &old_name,
         return false;
     }
 
-    auto &dynsymTab = pElf->getDynsymTab(soname);
+    auto &dynsymTab  = pElf->getDynsymTab(soname);
     uint32_t undefCount = 0;
     auto iter = dynsymTab.end();
     for (auto it = dynsymTab.begin(); it != dynsymTab.end();)
@@ -218,10 +252,14 @@ bool EditSo::replaceSoDynsym(const std::string &old_name,
     write(mOutputFd, pInputMmap + dynsymAddr, undefCount * 0x18);
     writeDefDynsym(mOutputFd, dynsymTab);
 
+    
     uint64_t dynstrAddr = pElf->getSectionAddr(soname, ".dynstr");
     write(mOutputFd, pInputMmap + dynstrAddr, inputSt.st_size - dynstrAddr);
     lseek(mOutputFd, dynstrAddr + iter->symbol_name_addr, SEEK_SET);
     write(mOutputFd, new_name.c_str(), new_name.size());
+
+    uint64_t reladynAddr = pElf->getSectionAddr(soname, ".rela.dyn");
+    updateRelasym(mOutputFd, reladynAddr, dynsymTab, undefCount);
     close(mInputFd);
     close(mOutputFd);
     return true;

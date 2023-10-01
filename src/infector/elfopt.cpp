@@ -1,5 +1,6 @@
 #include "elfopt.h"
 #include "log/log.h"
+#include "threadpool/workqueue.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -11,11 +12,13 @@
 
 #define SECTION_DYNSTR_STR ".dynstr"
 #define SECTION_DYNSYM_STR ".dynsym"
+#define SECTION_DYNRELA_STR ".rela.dyn"
 
 Elf64SectionWrapper::Elf64SectionWrapper()
 {
     mSecTab[SECTION_DYNSTR_STR] = std::make_shared<Elf64DynstrSection>();
     mSecTab[SECTION_DYNSYM_STR] = std::make_shared<Elf64DynsymSection>();
+    mSecTab[SECTION_DYNRELA_STR] = std::make_shared<Elf64DynRelaSectoin>();
 }
 
 Elf64SectionWrapper::SecTab &Elf64SectionWrapper::getSecTab()
@@ -38,15 +41,16 @@ long Elf64Wrapper::getSectionAddr(const std::string &soname,
     return 0;
 }
 
-Elf64DynsymSection::SymTab &Elf64Wrapper::getDynsymTab(
-                                          const std::string &soname)
+Elf64Section::SymTab &Elf64Wrapper::getDynsymTab(const std::string &soname)
 {
     auto pSecWrapper = mSecWrapperTab[soname];
     if (pSecWrapper)
     {
-        auto pDynSymSec = std::dynamic_pointer_cast<Elf64DynsymSection>(
-                               pSecWrapper->getSecTab()[SECTION_DYNSYM_STR]);
-        return pDynSymSec->getSymTab();
+        for (auto &s : pSecWrapper->getSecTab())
+        {
+            if (s.second)
+                return s.second->getSymTab();
+        }
     }
 }
 
@@ -106,7 +110,6 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
         section.section_size = sHdr[i].sh_size;
         section.section_ent_size = sHdr[i].sh_entsize;
         section.section_addr_align = sHdr[i].sh_addralign;
-
         if (!pSecTable[section.section_name])
         {
             pSecTable[section.section_name] = std::make_shared<Elf64Section>();
@@ -142,6 +145,7 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
 }
 
 char *Elf64Section::pDynstr = nullptr;
+Elf64Section::SymTab Elf64Section::symTab;
 
 void Elf64Section::setNull()
 {
@@ -200,18 +204,51 @@ std::string Elf64DynsymSection::getSymbolIndex(uint16_t &sym_idx)
     }
 }
 
-void Elf64DynsymSection::pushSection(uint8_t *pMmap, 
+static void debug(std::list<Symbol> &dynsymTab)
+{
+    int count = 0;
+    for (auto &d : dynsymTab)
+    {
+        for (auto &m : d.symbol_rela_table)
+        {
+            count++;
+        }
+
+    }
+}
+
+void Elf64DynRelaSectoin::pushSectionS(uint8_t *pMmap, 
+                                      Section &section, 
+                                      Elf64_Addr baseAddr)
+{
+    auto total_syms = (section.section_size + 114192)/ sizeof(Elf64_Rela);
+    auto syms_data = (Elf64_Rela*)(pMmap + section.section_offset);
+    for (int i = 0; i < total_syms; i++)
+    {
+        uint64_t idx = syms_data[i].r_info >> 32;
+        for (auto &l : symTab)
+        {
+            if (l.symbol_idx == idx)
+            {
+                l.symbol_rela_table[i] = syms_data[i];
+                break;
+            }
+        }
+    }
+    debug(symTab);
+}
+
+void Elf64DynsymSection::pushSectionS(uint8_t *pMmap, 
                                      Section &section, 
                                      Elf64_Addr baseAddr)
 {
-    sectionAddr = section.section_addr;
     auto total_syms = section.section_size / sizeof(Elf64_Sym);
     auto syms_data = (Elf64_Sym*)(pMmap + section.section_offset);
 
     Symbol symbol;
     for (int i = 0; i < total_syms; ++i) {
         if (section.section_type != SHT_DYNSYM) continue;
-        symbol.symbol_num        = i;
+        symbol.symbol_idx        = i;
         symbol.symbol_value      = syms_data[i].st_value + baseAddr;
         symbol.symbol_size       = syms_data[i].st_size;
         symbol.symbol_info       = syms_data[i].st_info;
@@ -264,14 +301,13 @@ long Elf64DynsymSection::getSymAddr(const std::string &symname)
     return 0;
 }
 
-Elf64DynsymSection::SymTab &Elf64DynsymSection::getSymTab()
+Elf64Section::SymTab &Elf64Section::getSymTab()
 {
     return symTab;
 }
 
-void Elf64DynstrSection::pushSection(uint8_t *pMmap, 
+void Elf64DynstrSection::pushSectionS(uint8_t *pMmap, 
                                      Section &section, Elf64_Addr)
 {
-    sectionAddr = section.section_addr;
     pDynstr = (char *)pMmap + section.section_offset;
 }

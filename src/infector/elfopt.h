@@ -20,22 +20,25 @@ typedef struct {
     uint16_t symbol_index = 0;
     std::string symbol_index_str = "";
     std::intptr_t symbol_value = 0;
-    int symbol_num = 0, symbol_size = 0;
+    uint32_t symbol_idx = 0, symbol_size = 0;
     unsigned char symbol_info = 0, symbol_other = 0;
     std::string symbol_type = "", symbol_bind = "";
     std::string symbol_visibility = "";
     uint64_t symbol_name_addr = 0;
     std::string symbol_name = "";
-    std::string symbol_section = "";      
+    std::string symbol_section = "";  
+    std::map<int32_t, Elf64_Rela>  symbol_rela_table;
 } Symbol;
 
 class Elf64Section
 {
     friend class Elf64Wrapper;
+    using SymTab = std::list<Symbol>;
 public:
-    virtual void pushSection(uint8_t *, Section &section, Elf64_Addr)
+    void pushSection(uint8_t *pMap, Section &section, Elf64_Addr baseAddr)
     {
         sectionAddr = section.section_addr;
+        pushSectionS(pMap, section, baseAddr);
     }
 
     uint64_t getSectionAddr()
@@ -43,9 +46,15 @@ public:
         return sectionAddr;
     }
 
+    SymTab &getSymTab();
+
+protected:
+    virtual void pushSectionS(uint8_t *, Section &section, Elf64_Addr){}
+
 protected:
     static char *pDynstr;
     uint64_t sectionAddr;
+    static SymTab symTab;
 
 private:
     static void setNull();
@@ -54,28 +63,29 @@ private:
 class Elf64DynsymSection final: public Elf64Section
 {
 public:
-    using SymTab = std::list<Symbol>;
-
-    void pushSection(uint8_t *, Section &, Elf64_Addr) override;
-
     long getSymAddr(const std::string &);
 
-    SymTab &getSymTab();
+protected:
+    void pushSectionS(uint8_t *, Section &, Elf64_Addr) override;
 
 private:
     std::string getSymbolType(uint8_t &);
     std::string getSymbolBind(uint8_t &);
     std::string getSymbolVisibility(uint8_t &);
-    std::string getSymbolIndex(uint16_t &);
+    std::string getSymbolIndex(uint16_t &); 
+};
 
-private:
-    SymTab symTab;
+class Elf64DynRelaSectoin final : public Elf64Section
+{
+protected:
+    void pushSectionS(uint8_t *, Section &, Elf64_Addr) override;
+
 };
 
 class Elf64DynstrSection final : public Elf64Section
 {
-public:
-    void pushSection(uint8_t *, Section &, Elf64_Addr) override;
+protected:
+    void pushSectionS(uint8_t *, Section &, Elf64_Addr) override;
 };
 
 class Elf64SectionWrapper
@@ -100,7 +110,7 @@ public:
 
     long getSectionAddr(const std::string &, const std::string &);
 
-    Elf64DynsymSection::SymTab &getDynsymTab(const std::string &);
+    Elf64Section::SymTab &getDynsymTab(const std::string &);
 
     void clearAllSyms();
 
