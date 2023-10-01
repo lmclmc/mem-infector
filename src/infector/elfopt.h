@@ -35,10 +35,11 @@ class Elf64Section
     friend class Elf64Wrapper;
     using SymTab = std::list<Symbol>;
 public:
-    void pushSection(uint8_t *pMap, Section &section, Elf64_Addr baseAddr)
+    void pushSection(uint8_t *pMap, Section &section, 
+                     Elf64_Addr baseAddr, uint64_t userdata = 0)
     {
         sectionAddr = section.section_addr;
-        pushSectionS(pMap, section, baseAddr);
+        pushSectionS(pMap, section, baseAddr, userdata);
     }
 
     uint64_t getSectionAddr()
@@ -49,15 +50,12 @@ public:
     SymTab &getSymTab();
 
 protected:
-    virtual void pushSectionS(uint8_t *, Section &section, Elf64_Addr){}
+    virtual void pushSectionS(uint8_t *, Section &section, 
+                              Elf64_Addr, uint64_t){}
 
 protected:
-    static char *pDynstr;
     uint64_t sectionAddr;
     static SymTab symTab;
-
-private:
-    static void setNull();
 };
 
 class Elf64DynsymSection final: public Elf64Section
@@ -66,7 +64,7 @@ public:
     long getSymAddr(const std::string &);
 
 protected:
-    void pushSectionS(uint8_t *, Section &, Elf64_Addr) override;
+    void pushSectionS(uint8_t *, Section &, Elf64_Addr, uint64_t) override;
 
 private:
     std::string getSymbolType(uint8_t &);
@@ -75,17 +73,11 @@ private:
     std::string getSymbolIndex(uint16_t &); 
 };
 
-class Elf64DynRelaSectoin final : public Elf64Section
+class Elf64RelaDynSectoin final : public Elf64Section
 {
 protected:
-    void pushSectionS(uint8_t *, Section &, Elf64_Addr) override;
+    void pushSectionS(uint8_t *, Section &, Elf64_Addr, uint64_t) override;
 
-};
-
-class Elf64DynstrSection final : public Elf64Section
-{
-protected:
-    void pushSectionS(uint8_t *, Section &, Elf64_Addr) override;
 };
 
 class Elf64SectionWrapper
@@ -114,7 +106,7 @@ public:
 
     void clearAllSyms();
 
-public:
+private:
     uint8_t *pMmap;
     int mFd;
 

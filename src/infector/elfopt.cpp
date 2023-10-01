@@ -1,6 +1,7 @@
 #include "elfopt.h"
 #include "log/log.h"
 #include "threadpool/workqueue.h"
+#include "util/single.hpp"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -12,13 +13,15 @@
 
 #define SECTION_DYNSTR_STR ".dynstr"
 #define SECTION_DYNSYM_STR ".dynsym"
-#define SECTION_DYNRELA_STR ".rela.dyn"
+#define SECTION_RELADYN_STR ".rela.dyn"
+#define SECTION_RELAPLT_STR ".rela.plt"
+
+using namespace lmc;
 
 Elf64SectionWrapper::Elf64SectionWrapper()
 {
-    mSecTab[SECTION_DYNSTR_STR] = std::make_shared<Elf64DynstrSection>();
     mSecTab[SECTION_DYNSYM_STR] = std::make_shared<Elf64DynsymSection>();
-    mSecTab[SECTION_DYNRELA_STR] = std::make_shared<Elf64DynRelaSectoin>();
+    mSecTab[SECTION_RELADYN_STR] = std::make_shared<Elf64RelaDynSectoin>();
 }
 
 Elf64SectionWrapper::SecTab &Elf64SectionWrapper::getSecTab()
@@ -57,8 +60,6 @@ Elf64Section::SymTab &Elf64Wrapper::getDynsymTab(const std::string &soname)
 bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
 {
     struct stat st;
-
-    Elf64Section::setNull();
 
     if ((mFd = open(soname.c_str(), O_RDONLY)) < 0) 
     {
@@ -99,6 +100,16 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
     Elf64_Shdr *sStrtab = &sHdr[eHdr->e_shstrndx];
     const char *const pStrtab = (char *)pMmap + sStrtab->sh_offset;
 
+    WorkQueue *work = TypeSingle<WorkQueue>::getInstance(MutexType::None);
+    std::future<bool> dynsymFuture;
+    std::future<bool> reladynFuture;
+
+    std::promise<uint64_t> dynstrPromise;
+    std::future<uint64_t> dynstrFuture = dynstrPromise.get_future();
+
+    std::promise<uint64_t> relapltPromise;
+    std::future<uint64_t> relapltFuture = relapltPromise.get_future();
+    
     for (int i = 0; i < shnum; ++i) 
     {
         Section section;
@@ -114,43 +125,53 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
         {
             pSecTable[section.section_name] = std::make_shared<Elf64Section>();
         }
-        pSecTable[section.section_name]->pushSection(pMmap, 
-                                                     section, 
-                                                     baseAddr);
-    }
 
-    for (int i = 0; i < shnum; ++i) 
-    {
-        Section section;
-        section.section_index = i;
-        section.section_name = std::string(pStrtab + sHdr[i].sh_name);
-        section.section_type = sHdr[i].sh_type;
-        section.section_addr = sHdr[i].sh_addr;
-        section.section_offset = sHdr[i].sh_offset;
-        section.section_size = sHdr[i].sh_size;
-        section.section_ent_size = sHdr[i].sh_entsize;
-        section.section_addr_align = sHdr[i].sh_addralign;
-        
-        if (!pSecTable[section.section_name])
+        if (section.section_name == SECTION_DYNSTR_STR)
         {
-            pSecTable[section.section_name] = std::make_shared<Elf64Section>();
-        }
+            dynstrPromise.set_value(section.section_offset);
+        } else if (section.section_name == SECTION_DYNSYM_STR)
+        {
+            dynsymFuture = work->addTask([&](uint8_t *pMap, 
+                                             Section &section, 
+                                             Elf64_Addr baseAddr){
+                uint64_t offset = dynstrFuture.get();
+                pSecTable[section.section_name]->pushSection(pMmap,
+                                                             section,
+                                                             baseAddr,
+                                                             offset);
+                return true;
+            }, pMmap, section, baseAddr);
+            continue;
+        } else if (section.section_name == SECTION_RELADYN_STR)
+        {
+            reladynFuture = work->addTask([&](uint8_t *pMap, 
+                                              Section &section, 
+                                              Elf64_Addr baseAddr){
+                uint64_t size = relapltFuture.get();
+                pSecTable[section.section_name]->pushSection(pMmap,
+                                                             section,
+                                                             baseAddr,
+                                                             size);
+                return true;
+            }, pMmap, section, baseAddr);
+            continue;
+        } else if (section.section_name == SECTION_RELAPLT_STR)
+        {
+            relapltPromise.set_value(section.section_size);
+        } 
 
         pSecTable[section.section_name]->pushSection(pMmap, 
                                                      section, 
                                                      baseAddr);
     }
+
+    dynsymFuture.get();
+    reladynFuture.get();
     close(mFd);
     return true;
 }
 
-char *Elf64Section::pDynstr = nullptr;
 Elf64Section::SymTab Elf64Section::symTab;
-
-void Elf64Section::setNull()
-{
-    pDynstr = nullptr;
-}
 
 std::string Elf64DynsymSection::getSymbolType(uint8_t &sym_type) 
 {
@@ -217,11 +238,13 @@ static void debug(std::list<Symbol> &dynsymTab)
     }
 }
 
-void Elf64DynRelaSectoin::pushSectionS(uint8_t *pMmap, 
-                                      Section &section, 
-                                      Elf64_Addr baseAddr)
+void Elf64RelaDynSectoin::pushSectionS(uint8_t *pMmap, 
+                                       Section &section, 
+                                       Elf64_Addr baseAddr,
+                                       uint64_t userdata)
 {
-    auto total_syms = (section.section_size + 114192)/ sizeof(Elf64_Rela);
+    uint64_t relapltSize = userdata;
+    auto total_syms = (section.section_size + relapltSize)/ sizeof(Elf64_Rela);
     auto syms_data = (Elf64_Rela*)(pMmap + section.section_offset);
     for (int i = 0; i < total_syms; i++)
     {
@@ -240,14 +263,18 @@ void Elf64DynRelaSectoin::pushSectionS(uint8_t *pMmap,
 
 void Elf64DynsymSection::pushSectionS(uint8_t *pMmap, 
                                      Section &section, 
-                                     Elf64_Addr baseAddr)
+                                     Elf64_Addr baseAddr,
+                                     uint64_t userdata)
 {
     auto total_syms = section.section_size / sizeof(Elf64_Sym);
     auto syms_data = (Elf64_Sym*)(pMmap + section.section_offset);
+    char *pDynStr = (char *)pMmap + userdata;
 
     Symbol symbol;
     for (int i = 0; i < total_syms; ++i) {
-        if (section.section_type != SHT_DYNSYM) continue;
+        if (section.section_type != SHT_DYNSYM) 
+            continue;
+            
         symbol.symbol_idx        = i;
         symbol.symbol_value      = syms_data[i].st_value + baseAddr;
         symbol.symbol_size       = syms_data[i].st_size;
@@ -260,10 +287,8 @@ void Elf64DynsymSection::pushSectionS(uint8_t *pMmap,
         symbol.symbol_index      = syms_data[i].st_shndx;
         symbol.symbol_section    = section.section_name;  
 
-        if (pDynstr == nullptr) return;
-
         symbol.symbol_name_addr = syms_data[i].st_name;
-        symbol.symbol_name = std::string(pDynstr + syms_data[i].st_name);
+        symbol.symbol_name = std::string(pDynStr + syms_data[i].st_name);
         symTab.emplace_back(symbol);
     }
 }
@@ -304,10 +329,4 @@ long Elf64DynsymSection::getSymAddr(const std::string &symname)
 Elf64Section::SymTab &Elf64Section::getSymTab()
 {
     return symTab;
-}
-
-void Elf64DynstrSection::pushSectionS(uint8_t *pMmap, 
-                                     Section &section, Elf64_Addr)
-{
-    pDynstr = (char *)pMmap + section.section_offset;
 }
