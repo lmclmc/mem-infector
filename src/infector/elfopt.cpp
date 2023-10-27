@@ -73,8 +73,8 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
         return false;
     }
 
-    pMmap = static_cast<uint8_t*>(mmap(NULL, st.st_size, 
-                                       PROT_READ, MAP_PRIVATE, mFd, 0));
+    pMmap = static_cast<uint8_t*>(mmap(NULL, st.st_size, PROT_READ, 
+                                       MAP_PRIVATE, mFd, 0));
     if (pMmap == MAP_FAILED) 
     {
         LOGGER_ERROR << "mmap: " << strerror(errno);
@@ -167,7 +167,16 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
 
     dynsymFuture.get();
     reladynFuture.get();
-    close(mFd);
+
+    if (munmap(pMmap, st.st_size) == -1)
+        LOGGER_ERROR << strerror(errno);
+
+    if (close(mFd) == -1)
+    {
+        LOGGER_ERROR << strerror(errno);
+        return false;
+    }
+
     return true;
 }
 
@@ -225,26 +234,13 @@ std::string Elf64DynsymSection::getSymbolIndex(uint16_t &sym_idx)
     }
 }
 
-static void debug(std::list<Symbol> &dynsymTab)
-{
-    int count = 0;
-    for (auto &d : dynsymTab)
-    {
-        for (auto &m : d.symbol_rela_table)
-        {
-            count++;
-        }
-
-    }
-}
-
 void Elf64RelaDynSectoin::pushSectionS(uint8_t *pMmap, 
                                        Section &section, 
                                        Elf64_Addr baseAddr,
                                        uint64_t userdata)
 {
     uint64_t relapltSize = userdata;
-    auto total_syms = (section.section_size + relapltSize)/ sizeof(Elf64_Rela);
+    auto total_syms = (section.section_size + relapltSize) / sizeof(Elf64_Rela);
     auto syms_data = (Elf64_Rela*)(pMmap + section.section_offset);
     for (int i = 0; i < total_syms; i++)
     {
@@ -258,13 +254,12 @@ void Elf64RelaDynSectoin::pushSectionS(uint8_t *pMmap,
             }
         }
     }
-    debug(symTab);
 }
 
 void Elf64DynsymSection::pushSectionS(uint8_t *pMmap, 
-                                     Section &section, 
-                                     Elf64_Addr baseAddr,
-                                     uint64_t userdata)
+                                      Section &section, 
+                                      Elf64_Addr baseAddr,
+                                      uint64_t userdata)
 {
     auto total_syms = section.section_size / sizeof(Elf64_Sym);
     auto syms_data = (Elf64_Sym*)(pMmap + section.section_offset);

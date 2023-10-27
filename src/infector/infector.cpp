@@ -285,15 +285,14 @@ bool Infector::injectEvilSoname(const std::string &evilsoname)
         LOGGER_ERROR << "dlopen = " << dlopenAddr;
         return false;
     }
-    LOGGER_INFO << LogFormat::addr << mallocAddr;
+
     Elf64_Addr retAddr = callRemoteFunc(mallocAddr, MEM_SIZE);
-    LOGGER_INFO << LogFormat::addr << retAddr;
     if (!retAddr)
     {
         LOGGER_ERROR << "target process malloc failed";
         return false;
     }
-    LOGGER_INFO << mEvilSoname;
+
     if (!writeStrToTarget(retAddr, mEvilSoname))
     {
         LOGGER_ERROR << "writeStrToTarget";
