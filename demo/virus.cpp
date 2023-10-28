@@ -37,8 +37,10 @@ int main(int argc, char *argv[])
     pCmd->add("-ho", "--hook", "hook syscall", {"--pid", "--link"});
     pCmd->add<std::string>("-od", "--old_dynsymstr", "input old dynsym name");
     pCmd->add<std::string>("-nd", "--new_dynsymstr", "input new dynsym name", {"-od"});
-    pCmd->add<std::string>("-so", "--soname", "input so name", {"-nd", "-od"});
-    pCmd->add<std::string>("-ou", "--output_so", "output so name", {"-so", "-nd", "-od"});
+    pCmd->add<std::string>("-so", "--soname", "input so name");
+    pCmd->add<std::string>("-ou", "--output_so", "output so name", {"-so"});
+    pCmd->add("-c", "--confuse", "symbols confuse", {"-so", "-ou"});
+    pCmd->add<std::set<std::string>>("-sf", "--strfilter", "symbols filter", {"-c"});
     pCmd->add("-v", "--version", "get version");
 
     pCmd->parse(false, argc, argv);
@@ -71,21 +73,29 @@ int main(int argc, char *argv[])
 
     std::string old_dynsymStr = "";
     std::string new_dynsymStr = "";
-    std::string soname = "";
+    std::string input_soname = "";
     std::string output_soname = "";
-    if (pCmd->get("-od", old_dynsymStr) &&
-        pCmd->get("-nd", new_dynsymStr) &&
-        pCmd->get("-so", soname) &&
-        pCmd->get("-ou", output_soname))
+    if (pCmd->get("-so", input_soname) &&
+        pCmd->get("-ou", output_soname) &&
+        pCmd->get("-od", old_dynsymStr) &&
+        pCmd->get("-nd", new_dynsymStr))
     {
         EditSo editSo;
         editSo.replaceSoDynsym(old_dynsymStr,
                                new_dynsymStr,
-                               soname,
+                               input_soname,
                                output_soname);
         return 0;
     }
     
+    if (pCmd->get("-c"))
+    {
+        EditSo editSo;
+        std::set<std::string> filterstr;
+        pCmd->get("-sf", filterstr);
+        editSo.confuse(input_soname, output_soname, filterstr);
+        return 0;
+    }
 
     std::string outputfileStr;
     ret = pCmd->get("--outputfile", outputfileStr);

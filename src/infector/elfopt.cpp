@@ -15,6 +15,7 @@
 #define SECTION_DYNSYM_STR ".dynsym"
 #define SECTION_RELADYN_STR ".rela.dyn"
 #define SECTION_RELAPLT_STR ".rela.plt"
+#define SECTION_GNUVERSION_STR ".gnu.version_r"
 
 using namespace lmc;
 
@@ -22,6 +23,7 @@ Elf64SectionWrapper::Elf64SectionWrapper()
 {
     mSecTab[SECTION_DYNSYM_STR] = std::make_shared<Elf64DynsymSection>();
     mSecTab[SECTION_RELADYN_STR] = std::make_shared<Elf64RelaDynSectoin>();
+    mSecTab[SECTION_GNUVERSION_STR] = std::make_shared<Elf64GnuVerSectoin>();
 }
 
 Elf64SectionWrapper::SecTab &Elf64SectionWrapper::getSecTab()
@@ -29,8 +31,23 @@ Elf64SectionWrapper::SecTab &Elf64SectionWrapper::getSecTab()
     return mSecTab;
 }
 
-long Elf64Wrapper::getSectionAddr(const std::string &soname, 
-                                  const std::string &sectionName)
+uint32_t Elf64Wrapper::getSectionSize(const std::string &soname, 
+                                      const std::string &sectionName)
+{
+    auto pSecWrapper = mSecWrapperTab[soname];
+    if (pSecWrapper)
+    {
+        auto &pSecTab = pSecWrapper->getSecTab();
+        if (pSecTab.find(sectionName) != pSecTab.end())
+        {
+            return pSecTab[sectionName]->getSectionSize();
+        }
+    }
+    return 0;
+}
+
+Elf64_Addr Elf64Wrapper::getSectionAddr(const std::string &soname, 
+                                        const std::string &sectionName)
 {
     auto pSecWrapper = mSecWrapperTab[soname];
     if (pSecWrapper)
@@ -53,6 +70,19 @@ Elf64Section::SymTab &Elf64Wrapper::getDynsymTab(const std::string &soname)
         {
             if (s.second)
                 return s.second->getSymTab();
+        }
+    }
+}
+
+Elf64Section::GnuVerTab &Elf64Wrapper::getGnuVerTab(const std::string &soname)
+{
+    auto pSecWrapper = mSecWrapperTab[soname];
+    if (pSecWrapper)
+    {
+        for (auto &s : pSecWrapper->getSecTab())
+        {
+            if (s.second)
+                return s.second->getGnuVerTab();
         }
     }
 }
@@ -103,9 +133,11 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
     WorkQueue *work = TypeSingle<WorkQueue>::getInstance(MutexType::None);
     std::future<bool> dynsymFuture;
     std::future<bool> reladynFuture;
+    std::future<bool> gnuversoinFuture;
 
     std::promise<uint64_t> dynstrPromise;
-    std::future<uint64_t> dynstrFuture = dynstrPromise.get_future();
+    std::shared_future<uint64_t> dynstrFuture = 
+                                 dynstrPromise.get_future().share();
 
     std::promise<uint64_t> relapltPromise;
     std::future<uint64_t> relapltFuture = relapltPromise.get_future();
@@ -158,7 +190,20 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
         } else if (section.section_name == SECTION_RELAPLT_STR)
         {
             relapltPromise.set_value(section.section_size);
-        } 
+        } else if (section.section_name == SECTION_GNUVERSION_STR)
+        {
+            gnuversoinFuture = work->addTask([&](uint8_t *pMap, 
+                                                 Section &section, 
+                                                 Elf64_Addr baseAddr){
+                uint64_t offset = dynstrFuture.get();
+                pSecTable[section.section_name]->pushSection(pMmap,
+                                                             section,
+                                                             baseAddr,
+                                                             offset);
+                return true;
+            }, pMmap, section, baseAddr);
+            continue;
+        }
 
         pSecTable[section.section_name]->pushSection(pMmap, 
                                                      section, 
@@ -167,6 +212,7 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
 
     dynsymFuture.get();
     reladynFuture.get();
+    gnuversoinFuture.get();
 
     if (munmap(pMmap, st.st_size) == -1)
         LOGGER_ERROR << strerror(errno);
@@ -181,6 +227,34 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
 }
 
 Elf64Section::SymTab Elf64Section::symTab;
+Elf64Section::GnuVerTab Elf64Section::gnuVersionTab;
+
+void Elf64GnuVerSectoin::pushSectionS(uint8_t *pMmap, 
+                                      Section &section, 
+                                      Elf64_Addr baseAddr,
+                                      uint64_t userdata)
+{
+    auto total_gnu_versions = section.section_size / sizeof(GnuVer::gnuver);
+    auto gnuversion_data = (decltype(GnuVer::gnuver) *)(pMmap + 
+                                                        section.section_offset);
+    char *pDynStr = (char *)pMmap + userdata;
+
+    GnuVer gnuver;
+    for (int i = 0; i < total_gnu_versions; ++i) {
+        if ((*(unsigned short*)&gnuversion_data[i]) == 0x1)
+        {
+            gnuver.need = true;
+            gnuver.offset = (*(Elf64_Verneed *)&gnuversion_data[i]).vn_file;
+        } else {
+            gnuver.need = false;
+            gnuver.offset = (*(Elf64_Vernaux *)&gnuversion_data[i]).vna_name;
+        }
+        gnuver.name = std::string(pDynStr +gnuver.offset);
+
+        memcpy(&gnuver.gnuver, &gnuversion_data[i],sizeof(GnuVer::gnuver));
+        gnuVersionTab.emplace_back(gnuver);
+    }
+}
 
 std::string Elf64DynsymSection::getSymbolType(uint8_t &sym_type) 
 {
@@ -267,9 +341,6 @@ void Elf64DynsymSection::pushSectionS(uint8_t *pMmap,
 
     Symbol symbol;
     for (int i = 0; i < total_syms; ++i) {
-        if (section.section_type != SHT_DYNSYM) 
-            continue;
-            
         symbol.symbol_idx        = i;
         symbol.symbol_value      = syms_data[i].st_value + baseAddr;
         symbol.symbol_size       = syms_data[i].st_size;
@@ -281,15 +352,14 @@ void Elf64DynsymSection::pushSectionS(uint8_t *pMmap,
         symbol.symbol_index_str  = getSymbolIndex(syms_data[i].st_shndx);
         symbol.symbol_index      = syms_data[i].st_shndx;
         symbol.symbol_section    = section.section_name;  
-
         symbol.symbol_name_addr = syms_data[i].st_name;
         symbol.symbol_name = std::string(pDynStr + syms_data[i].st_name);
         symTab.emplace_back(symbol);
     }
 }
 
-long Elf64Wrapper::getSymAddr(const std::string &soname, 
-                              const std::string &symname)
+Elf64_Addr Elf64Wrapper::getSymAddr(const std::string &soname, 
+                                    const std::string &symname)
 {
     auto pSecWrapper = mSecWrapperTab[soname];
     if (pSecWrapper)
@@ -324,4 +394,9 @@ long Elf64DynsymSection::getSymAddr(const std::string &symname)
 Elf64Section::SymTab &Elf64Section::getSymTab()
 {
     return symTab;
+}
+
+Elf64Section::GnuVerTab &Elf64Section::getGnuVerTab()
+{
+    return gnuVersionTab;
 }

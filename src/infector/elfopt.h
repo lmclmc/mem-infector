@@ -30,32 +30,50 @@ typedef struct {
     std::map<int32_t, Elf64_Rela>  symbol_rela_table;
 } Symbol;
 
+typedef struct {
+    bool need;
+    uint32_t offset;
+    std::string name;
+    uint64_t gnuver[2];
+} GnuVer;
+
 class Elf64Section
 {
     friend class Elf64Wrapper;
     using SymTab = std::list<Symbol>;
+    using GnuVerTab = std::list<GnuVer>;
 public:
     void pushSection(uint8_t *pMap, Section &section, 
                      Elf64_Addr baseAddr, uint64_t userdata = 0)
     {
+        sectionSize = section.section_size;
         sectionAddr = section.section_addr;
         pushSectionS(pMap, section, baseAddr, userdata);
     }
 
-    uint64_t getSectionAddr()
+    Elf64_Addr getSectionAddr()
     {
         return sectionAddr;
     }
 
+    uint32_t getSectionSize()
+    {
+        return sectionSize;
+    }
+
     SymTab &getSymTab();
+
+    GnuVerTab &getGnuVerTab();
 
 protected:
     virtual void pushSectionS(uint8_t *, Section &section, 
                               Elf64_Addr, uint64_t){}
 
 protected:
-    uint64_t sectionAddr;
+    uint32_t sectionSize;
+    Elf64_Addr sectionAddr;
     static SymTab symTab;
+    static GnuVerTab gnuVersionTab;
 };
 
 class Elf64DynsymSection final: public Elf64Section
@@ -80,6 +98,12 @@ protected:
 
 };
 
+class Elf64GnuVerSectoin final : public Elf64Section
+{
+protected:
+    void pushSectionS(uint8_t *, Section &, Elf64_Addr, uint64_t) override;
+};
+
 class Elf64SectionWrapper
 {
     using SecTab = std::map<std::string, std::shared_ptr<Elf64Section>>;
@@ -98,11 +122,15 @@ public:
                      mFd(0){}
     bool loadSo(const std::string &, Elf64_Addr);
 
-    long getSymAddr(const std::string &, const std::string &);
+    Elf64_Addr getSymAddr(const std::string &, const std::string &);
 
-    long getSectionAddr(const std::string &, const std::string &);
+    Elf64_Addr getSectionAddr(const std::string &, const std::string &);
+
+    uint32_t getSectionSize(const std::string &, const std::string &);
 
     Elf64Section::SymTab &getDynsymTab(const std::string &);
+
+    Elf64Section::GnuVerTab &getGnuVerTab(const std::string &);
 
     void clearAllSyms();
 

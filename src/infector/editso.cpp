@@ -109,8 +109,10 @@ static void writeObjstate(int fd, obj_state_t *obj_state, uint32_t defcount)
     }
 }
 
-static void writeDefDynsym(int fd, std::list<Symbol> &dynsymTab)
+static void writeDynsym(int fd, Elf64_Addr baseAddr,
+                        std::list<Symbol> &dynsymTab)
 {
+    lseek(fd, baseAddr, SEEK_SET);
     Elf64_Sym sym;
     for (auto &d : dynsymTab)
     {
@@ -120,11 +122,41 @@ static void writeDefDynsym(int fd, std::list<Symbol> &dynsymTab)
         sym.st_shndx = d.symbol_index;
         sym.st_size = d.symbol_size;
         sym.st_value = d.symbol_value;
+        
         write(fd, &sym, sizeof(Elf64_Sym));
     }
 }
 
-static void updateRelasym(int fd, uint32_t relaBaseOffset, 
+static void writeGnuVerStr(int fd, Elf64_Addr dynstrAddr, 
+                           Elf64_Addr gnuverAddr, std::list<GnuVer> &gnuverTab)
+{
+    for (auto &g : gnuverTab)
+    {
+        lseek(fd, dynstrAddr + g.offset, SEEK_SET);
+        write(fd, g.name.c_str(), g.name.size());
+        write(fd, "\0", 1);
+    }
+
+    lseek(fd, gnuverAddr, SEEK_SET);
+    for (auto &g : gnuverTab)
+    {
+        write(fd, &g.gnuver, sizeof(GnuVer::gnuver));
+    }
+}
+
+static void writeDynStr(int fd, Elf64_Addr baseAddr,
+                        std::list<Symbol> &dynsymTab)
+{
+    Elf64_Sym sym;
+    for (auto &d : dynsymTab)
+    {
+        lseek(fd, baseAddr + d.symbol_name_addr, SEEK_SET);
+        write(fd, d.symbol_name.c_str(), d.symbol_name.size());
+        write(fd, "\0", 1);
+    }
+}
+
+static void updateRelasym(int fd, uint64_t relaBaseOffset, 
                           std::list<Symbol> &dynsymTab, int ndx)
 {
     uint64_t idx = ndx;
@@ -133,83 +165,75 @@ static void updateRelasym(int fd, uint32_t relaBaseOffset,
     {
         for (auto &m : d.symbol_rela_table)
         {
-            m.second.r_info =  (idx << 32) | 
-                               (m.second.r_info & 0xffffffff);
-            lseek(fd, relaBaseOffset + sizeof(Elf64_Rela) * m.first, 
-                  SEEK_SET);
+            m.second.r_info =  (idx << 32) | (m.second.r_info & 0xffffffff);
+            lseek(fd, relaBaseOffset + sizeof(Elf64_Rela) * m.first, SEEK_SET);
             write(fd, &m.second, sizeof(Elf64_Rela));
         }
-        // if (d.symbol_rela_idx >= 0)
-        // {
-        //     d.symbol_rela.r_info =  (idx << 32) | 
-        //                             (d.symbol_rela.r_info & 0xffffffff);
-        //     // LOGGER_INFO << LogFormat::addr << (relaBaseOffset + sizeof(Elf64_Rela) * d.symbol_rela_idx);
-        //     // LOGGER_INFO << d.symbol_rela.r_offset;
-        //     // LOGGER_INFO << d.symbol_rela.r_info;
-        //     //LOGGER_INFO << LogFormat::num << d.symbol_rela_idx;
-            
-        //     lseek(fd, relaBaseOffset + sizeof(Elf64_Rela) * d.symbol_rela_idx, 
-        //           SEEK_SET);
-        //     write(fd, &d.symbol_rela, sizeof(Elf64_Rela));
-        //     count++;
-        // }
 
         idx++;
     }
 }
 
-bool EditSo::replaceSoDynsym(const std::string &old_name,
-                             const std::string &new_name,
-                             const std::string &soname,
-                             const std::string &output_soname,
-                             uint32_t shift2)
+static std::string randStr()
+{
+    static int count = 0;
+    return std::to_string(count++);
+}
+
+bool EditSo::confuse(const std::string &input_soname,
+                     const std::string &output_soname,
+                     const std::set<std::string> &filter)
 {
     Elf64Wrapper *pElf = TypeSingle<Elf64Wrapper>::getInstance();
-    if (!pElf->loadSo(soname, 0))
+    if (!pElf->loadSo(input_soname, 0))
     {
-        LOGGER_ERROR << " open " << soname << " error";
+        LOGGER_ERROR << " open " << input_soname << " error";
         return false;
     }
 
-    auto &dynsymTab  = pElf->getDynsymTab(soname);
-    uint32_t undefCount = 0;
-    auto iter = dynsymTab.end();
-    for (auto it = dynsymTab.begin(); it != dynsymTab.end();)
-    {
-        if (old_name == it->symbol_name)
-            iter = it;
+    std::list<Symbol> dynUndefSymTab;
+    auto &dynsymTab  = pElf->getDynsymTab(input_soname);
+    auto &gnuverTab  = pElf->getGnuVerTab(input_soname);
 
+    uint64_t addrcount = 0;
+    for (auto it = dynsymTab.begin();;)
+    {
         if (it->symbol_name.empty() || it->symbol_index == SHN_UNDEF)
         {
-            undefCount++;
+            it->symbol_name_addr = addrcount;
+            addrcount = addrcount + it->symbol_name.size() + 1;
+            dynUndefSymTab.emplace_back(*it);
             it = dynsymTab.erase(it);
         } else 
         {
             it++;
+            if (it == dynsymTab.end())
+                break;
+            
+            if (filter.find(it->symbol_name) == filter.end())
+                it->symbol_name = randStr();
+
+            it->symbol_name_addr = addrcount;
+            addrcount = addrcount + it->symbol_name.size() + 1;
         }
     }
 
-    if (iter == dynsymTab.end())
+    for (auto &g : gnuverTab)
     {
-        LOGGER_ERROR << old_name << " not found";
-        return false;
+        if (g.need)
+        {
+            ((Elf64_Verneed *)&g.gnuver)->vn_file = addrcount;
+        } else {
+            ((Elf64_Vernaux *)&g.gnuver)->vna_name = addrcount;
+        }
+        g.offset = addrcount;
+        addrcount = addrcount + g.name.size() + 1;
     }
 
-    iter->symbol_name = new_name;
-
-    uint32_t nbuckets = 0x1003;
-    dynsymTab.sort([=](const Symbol &s1, const Symbol &s2){
-        uint32_t sh1 = elf_new_hash((const char *)s1.symbol_name.c_str())
-                                                  % nbuckets;
-        uint32_t sh2 = elf_new_hash((const char *)s2.symbol_name.c_str())
-                                                  % nbuckets;
-        return sh1 < sh2;
-    });
-
     int mInputFd = 0;
-    if ((mInputFd = open(soname.c_str(), O_RDONLY)) < 0) 
+    if ((mInputFd = open(input_soname.c_str(), O_RDONLY)) < 0) 
     {
-        LOGGER_ERROR << "open: " << soname << strerror(errno);
+        LOGGER_ERROR << "open: " << input_soname << strerror(errno);
         return false;
     }
 
@@ -220,7 +244,7 @@ bool EditSo::replaceSoDynsym(const std::string &old_name,
         return false;
     }
 
-    uint8_t * pInputMmap = static_cast<uint8_t*>(mmap(NULL, inputSt.st_size, 
+    uint8_t *pInputMmap = static_cast<uint8_t*>(mmap(NULL, inputSt.st_size, 
                                                       PROT_READ, MAP_PRIVATE, 
                                                       mInputFd, 0));
     if (pInputMmap == MAP_FAILED) 
@@ -236,29 +260,158 @@ bool EditSo::replaceSoDynsym(const std::string &old_name,
         return false;
     }
 
-    uint64_t gnuhashAddr = pElf->getSectionAddr(soname, ".gnu.hash");
+    uint64_t gnuhashAddr = pElf->getSectionAddr(input_soname, ".gnu.hash");
     if (!gnuhashAddr)
     {
         LOGGER_ERROR << "gnu hash section not exist";
         return false;
     }
 
+    uint64_t gnuhashMapAddr = (uint64_t)pInputMmap +gnuhashAddr;
+    uint32_t nbuckets = *(uint64_t *)gnuhashMapAddr & 0xffffffff;
+    uint32_t undefCount = *(uint64_t *)gnuhashMapAddr >> 32;
+    uint32_t maskwords_bm = *((uint64_t *)gnuhashMapAddr+1) & 0xffffffff;
+    uint32_t shift2 = *((uint64_t *)gnuhashMapAddr+1) >> 32;
+    dynsymTab.sort([=](const Symbol &s1, const Symbol &s2){
+        uint32_t sh1 = elf_new_hash((const char *)s1.symbol_name.c_str())
+                                                  % nbuckets;
+        uint32_t sh2 = elf_new_hash((const char *)s2.symbol_name.c_str())
+                                                  % nbuckets;
+        return sh1 < sh2;
+    });
+
     write(mOutputFd, pInputMmap, gnuhashAddr);
     obj_state_t obj_state;
-    calObjState(&obj_state, dynsymTab, nbuckets, undefCount, 0x200, 0xf);
+    calObjState(&obj_state, dynsymTab, nbuckets, undefCount, 
+                maskwords_bm, shift2);
     writeObjstate(mOutputFd, &obj_state, dynsymTab.size());
 
-    uint64_t dynsymAddr = pElf->getSectionAddr(soname, ".dynsym");
-    write(mOutputFd, pInputMmap + dynsymAddr, undefCount * 0x18);
-    writeDefDynsym(mOutputFd, dynsymTab);
+    uint64_t dynsymAddr = pElf->getSectionAddr(input_soname, ".dynsym");
+    writeDynsym(mOutputFd, dynsymAddr, dynUndefSymTab);
+    writeDynsym(mOutputFd, dynsymAddr + dynUndefSymTab.size() * 0x18, dynsymTab);
 
+    uint64_t dynstrAddr = pElf->getSectionAddr(input_soname, ".dynstr");
+    uint32_t dynstrSize = pElf->getSectionSize(input_soname, ".dynstr");
+    write(mOutputFd, pInputMmap + dynstrAddr, inputSt.st_size - dynstrAddr);
+
+    unsigned char buffer[1024 * 1024] = {0};
+    lseek(mOutputFd, dynstrAddr, SEEK_SET);
+    write(mOutputFd, buffer, dynstrSize);
+
+    writeDynStr(mOutputFd, dynstrAddr, dynUndefSymTab);
+    writeDynStr(mOutputFd, dynstrAddr, dynsymTab);
+
+    uint32_t gnuverAddr = pElf->getSectionAddr(input_soname, ".gnu.version_r");
+    writeGnuVerStr(mOutputFd, dynstrAddr, gnuverAddr, gnuverTab);
     
-    uint64_t dynstrAddr = pElf->getSectionAddr(soname, ".dynstr");
+    uint64_t reladynAddr = pElf->getSectionAddr(input_soname, ".rela.dyn");
+    updateRelasym(mOutputFd, reladynAddr, dynsymTab, undefCount);
+    close(mInputFd);
+    close(mOutputFd);
+}
+
+bool EditSo::replaceSoDynsym(const std::string &old_name,
+                             const std::string &new_name,
+                             const std::string &input_soname,
+                             const std::string &output_soname)
+{
+    Elf64Wrapper *pElf = TypeSingle<Elf64Wrapper>::getInstance();
+    if (!pElf->loadSo(input_soname, 0))
+    {
+        LOGGER_ERROR << " open " << input_soname << " error";
+        return false;
+    }
+
+    auto &dynsymTab  = pElf->getDynsymTab(input_soname);
+    auto iter = dynsymTab.end();
+    for (auto it = dynsymTab.begin(); it != dynsymTab.end();)
+    {
+        if (old_name == it->symbol_name)
+            iter = it;
+
+        if (it->symbol_name.empty() || it->symbol_index == SHN_UNDEF)
+        {
+            it = dynsymTab.erase(it);
+        } else 
+        {
+            it++;
+        }
+    }
+
+    if (iter == dynsymTab.end())
+    {
+        LOGGER_ERROR << old_name << " not found";
+        return false;
+    }
+
+    iter->symbol_name = new_name;
+
+    int mInputFd = 0;
+    if ((mInputFd = open(input_soname.c_str(), O_RDONLY)) < 0) 
+    {
+        LOGGER_ERROR << "open: " << input_soname << strerror(errno);
+        return false;
+    }
+
+    struct stat inputSt;
+    if (fstat(mInputFd, &inputSt) < 0) 
+    {
+        LOGGER_ERROR << "fstat: " << strerror(errno);
+        return false;
+    }
+
+    uint8_t *pInputMmap = static_cast<uint8_t*>(mmap(NULL, inputSt.st_size, 
+                                                      PROT_READ, MAP_PRIVATE, 
+                                                      mInputFd, 0));
+    if (pInputMmap == MAP_FAILED) 
+    {
+        LOGGER_ERROR << "mmap: " << strerror(errno);
+        return false;
+    }
+
+    int mOutputFd = 0;
+    if ((mOutputFd = open(output_soname.c_str(), O_CREAT | O_RDWR)) < 0) 
+    {
+        LOGGER_ERROR << "open: " << output_soname << strerror(errno);
+        return false;
+    }
+
+    uint64_t gnuhashAddr = pElf->getSectionAddr(input_soname, ".gnu.hash");
+    if (!gnuhashAddr)
+    {
+        LOGGER_ERROR << "gnu hash section not exist";
+        return false;
+    }
+
+    uint64_t gnuhashMapAddr = (uint64_t)pInputMmap +gnuhashAddr;
+    uint32_t nbuckets = *(uint64_t *)gnuhashMapAddr & 0xffffffff;
+    uint32_t undefCount = *(uint64_t *)gnuhashMapAddr >> 32;
+    uint32_t maskwords_bm = *((uint64_t *)gnuhashMapAddr+1) & 0xffffffff;
+    uint32_t shift2 = *((uint64_t *)gnuhashMapAddr+1) >> 32;
+    dynsymTab.sort([=](const Symbol &s1, const Symbol &s2){
+        uint32_t sh1 = elf_new_hash((const char *)s1.symbol_name.c_str())
+                                                  % nbuckets;
+        uint32_t sh2 = elf_new_hash((const char *)s2.symbol_name.c_str())
+                                                  % nbuckets;
+        return sh1 < sh2;
+    });
+
+    write(mOutputFd, pInputMmap, gnuhashAddr);
+    obj_state_t obj_state;
+    calObjState(&obj_state, dynsymTab, nbuckets, undefCount, 
+                maskwords_bm, shift2);
+    writeObjstate(mOutputFd, &obj_state, dynsymTab.size());
+
+    uint64_t dynsymAddr = pElf->getSectionAddr(input_soname, ".dynsym");
+    write(mOutputFd, pInputMmap + dynsymAddr, undefCount * 0x18);
+    writeDynsym(mOutputFd, dynsymAddr + undefCount * 0x18, dynsymTab);
+
+    uint64_t dynstrAddr = pElf->getSectionAddr(input_soname, ".dynstr");
     write(mOutputFd, pInputMmap + dynstrAddr, inputSt.st_size - dynstrAddr);
     lseek(mOutputFd, dynstrAddr + iter->symbol_name_addr, SEEK_SET);
     write(mOutputFd, new_name.c_str(), new_name.size());
 
-    uint64_t reladynAddr = pElf->getSectionAddr(soname, ".rela.dyn");
+    uint64_t reladynAddr = pElf->getSectionAddr(input_soname, ".rela.dyn");
     updateRelasym(mOutputFd, reladynAddr, dynsymTab, undefCount);
     close(mInputFd);
     close(mOutputFd);
