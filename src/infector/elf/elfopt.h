@@ -31,6 +31,8 @@ public:
 
     Elf64Section::GnuVerTab &getGnuVerTab(const std::string &);
 
+    Elf64Section::DynamicTab &getDynamicTab(const std::string &);
+
     void clearAllSyms();
 
 private:

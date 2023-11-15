@@ -36,17 +36,25 @@ typedef struct {
     uint64_t gnuver[2];
 } GnuVer;
 
+typedef struct {
+    Elf64_Dyn dyn;
+    uint32_t offset;
+    std::string name;
+    uint32_t flag;
+} Dynamic;
+
 class Elf64Section
 {
     friend class Elf64Wrapper;
     using SymTab = std::list<Symbol>;
     using GnuVerTab = std::list<GnuVer>;
+    using DynamicTab = std::list<Dynamic>;
 public:
     void pushSection(uint8_t *pMap, Section &section, 
                      Elf64_Addr baseAddr, uint64_t userdata = 0)
     {
         sectionSize = section.section_size;
-        sectionAddr = section.section_addr;
+        sectionAddr = section.section_offset;
         pushSectionS(pMap, section, baseAddr, userdata);
     }
 
@@ -58,6 +66,8 @@ public:
 
     GnuVerTab &getGnuVerTab();
 
+    DynamicTab &getDynamicTab();
+
 protected:
     virtual void pushSectionS(uint8_t *, Section &section, 
                               Elf64_Addr, uint64_t){}
@@ -67,6 +77,7 @@ protected:
     Elf64_Addr sectionAddr;
     static SymTab symTab;
     static GnuVerTab gnuVersionTab;
+    static DynamicTab dynamicTab;
 };
 
 #endif

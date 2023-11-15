@@ -6,6 +6,7 @@
 #include "elf_dynsym.h"
 #include "elf_reladyn.h"
 #include "elf_gnuver_r.h"
+#include "elf_dynamic.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -20,6 +21,7 @@
 #define SECTION_RELADYN_STR ".rela.dyn"
 #define SECTION_RELAPLT_STR ".rela.plt"
 #define SECTION_GNUVERSION_STR ".gnu.version_r"
+#define SECTION_DYNAMIC_STR ".dynamic"
 
 using namespace lmc;
 
@@ -28,6 +30,7 @@ Elf64SectionWrapper::Elf64SectionWrapper()
     mSecTab[SECTION_DYNSYM_STR] = std::make_shared<Elf64DynsymSection>();
     mSecTab[SECTION_RELADYN_STR] = std::make_shared<Elf64RelaDynSectoin>();
     mSecTab[SECTION_GNUVERSION_STR] = std::make_shared<Elf64GnuVerSectoin>();
+    mSecTab[SECTION_DYNAMIC_STR] = std::make_shared<Elf64DynamicSection>();
 }
 
 Elf64SectionWrapper::SecTab &Elf64SectionWrapper::getSecTab()
@@ -112,6 +115,7 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
     std::future<bool> dynsymFuture;
     std::future<bool> reladynFuture;
     std::future<bool> gnuversoinFuture;
+    std::future<bool> dynamicFuture;
 
     std::promise<uint64_t> dynstrPromise;
     std::shared_future<uint64_t> dynstrFuture = 
@@ -181,6 +185,19 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
                 return true;
             }, pMmap, section, baseAddr);
             continue;
+        } else if (section.section_name == SECTION_DYNAMIC_STR)
+        {
+            dynamicFuture = work->addTask([&](uint8_t *pMap, 
+                                              Section &section, 
+                                              Elf64_Addr baseAddr){
+                uint64_t offset = dynstrFuture.get();
+                pSecTable[section.section_name]->pushSection(pMmap,
+                                                             section,
+                                                             baseAddr,
+                                                             offset);
+                return true;
+            }, pMmap, section, baseAddr);
+            continue;
         }
 
         pSecTable[section.section_name]->pushSection(pMmap, 
@@ -188,6 +205,7 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
                                                      baseAddr);
     }
 
+    dynamicFuture.get();
     dynsymFuture.get();
     reladynFuture.get();
     gnuversoinFuture.get();
@@ -248,6 +266,19 @@ Elf64Section::GnuVerTab &Elf64Wrapper::getGnuVerTab(const std::string &soname)
         {
             if (s.second)
                 return s.second->getGnuVerTab();
+        }
+    }
+}
+
+Elf64Section::DynamicTab &Elf64Wrapper::getDynamicTab(const std::string &soname)
+{
+    auto pSecWrapper = mSecWrapperTab[soname];
+    if (pSecWrapper)
+    {
+        for (auto &s : pSecWrapper->getSecTab())
+        {
+            if (s.second)
+                return s.second->getDynamicTab();
         }
     }
 }

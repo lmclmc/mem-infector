@@ -127,20 +127,45 @@ static void writeDynsym(int fd, Elf64_Addr baseAddr,
     }
 }
 
-static void writeGnuVerStr(int fd, Elf64_Addr dynstrAddr, 
-                           Elf64_Addr gnuverAddr, std::list<GnuVer> &gnuverTab)
+static void writeGnuVerStr(int fd, Elf64_Addr dynstrAddr, Elf64_Addr gnuverAddr, 
+                           Elf64_Addr dynamicAddr, std::list<GnuVer> &gnuverTab, 
+                           std::list<Dynamic> dynamicTab)
 {
     for (auto &g : gnuverTab)
     {
         lseek(fd, dynstrAddr + g.offset, SEEK_SET);
         write(fd, g.name.c_str(), g.name.size());
         write(fd, "\0", 1);
+        for (auto &d : dynamicTab)
+        {
+            if (d.dyn.d_tag == DT_NEEDED && g.name == d.name)
+            {
+                d.dyn.d_un.d_ptr = g.offset;
+                d.flag = 1;
+            }
+        }
+    }
+
+    for (auto &d : dynamicTab)
+    {
+        if ((d.dyn.d_tag == DT_NEEDED && !d.flag) || d.dyn.d_tag == DT_SONAME)
+        {
+            d.dyn.d_un.d_ptr = lseek(fd, 0, SEEK_CUR) - dynstrAddr;
+            write(fd, d.name.c_str(), d.name.size());
+            write(fd, "\0", 1);
+        }
     }
 
     lseek(fd, gnuverAddr, SEEK_SET);
     for (auto &g : gnuverTab)
     {
         write(fd, &g.gnuver, sizeof(GnuVer::gnuver));
+    }
+
+    lseek(fd, dynamicAddr, SEEK_SET);
+    for (auto &d : dynamicTab)
+    {
+        write(fd, &d.dyn, sizeof(Elf64_Dyn));
     }
 }
 
@@ -194,7 +219,8 @@ bool EditSo::confuse(const std::string &input_soname,
     std::list<Symbol> dynUndefSymTab;
     auto &dynsymTab  = pElf->getDynsymTab(input_soname);
     auto &gnuverTab  = pElf->getGnuVerTab(input_soname);
-
+    auto &dynamicTab  = pElf->getDynamicTab(input_soname);
+    
     uint64_t addrcount = 0;
     for (auto it = dynsymTab.begin();;)
     {
@@ -301,8 +327,9 @@ bool EditSo::confuse(const std::string &input_soname,
     writeDynStr(mOutputFd, dynstrAddr, dynUndefSymTab);
     writeDynStr(mOutputFd, dynstrAddr, dynsymTab);
 
+    uint32_t dynamicAddr = pElf->getSectionAddr(input_soname, ".dynamic");
     uint32_t gnuverAddr = pElf->getSectionAddr(input_soname, ".gnu.version_r");
-    writeGnuVerStr(mOutputFd, dynstrAddr, gnuverAddr, gnuverTab);
+    writeGnuVerStr(mOutputFd, dynstrAddr, gnuverAddr, dynamicAddr, gnuverTab, dynamicTab);
     
     uint64_t reladynAddr = pElf->getSectionAddr(input_soname, ".rela.dyn");
     updateRelasym(mOutputFd, reladynAddr, dynsymTab, undefCount);
