@@ -17,5 +17,5 @@ install(FILES target/targetopt.h DESTINATION
               ${PROJECT_BINARY_DIR}/install/include/target/)
 install(FILES infector/infector.h DESTINATION 
               ${PROJECT_BINARY_DIR}/install/include/infector/)
-install(FILES infector/elfopt.h DESTINATION 
+install(FILES infector/elf/elfopt.h DESTINATION 
               ${PROJECT_BINARY_DIR}/install/include/infector/)

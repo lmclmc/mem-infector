@@ -1,7 +1,7 @@
 #include "infector.h"
 #include "target/targetopt.h"
 #include "util/single.hpp"
-#include "elfopt.h"
+#include "elf/elfopt.h"
 #include "log/log.h"
 extern "C"
 {

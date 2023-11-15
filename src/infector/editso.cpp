@@ -1,5 +1,5 @@
 #include "editso.h"
-#include "elfopt.h"
+#include "elf/elfopt.h"
 #include "util/single.hpp"
 #include "log/log.h"
 
