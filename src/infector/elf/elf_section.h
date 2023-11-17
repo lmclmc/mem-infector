@@ -46,6 +46,7 @@ typedef struct {
 class Elf64Section
 {
     friend class Elf64Wrapper;
+    friend class Elf64SectionWrapper;
     using SymTab = std::list<Symbol>;
     using GnuVerTab = std::list<GnuVer>;
     using DynamicTab = std::list<Dynamic>;
