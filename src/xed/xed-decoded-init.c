@@ -38,6 +38,11 @@ xed_decoded_inst_zero(xed_decoded_inst_t* p) {
     zero_inst(p);
 }
 
+xed_uint_t
+xed_decoded_inst_get_length(const xed_decoded_inst_t* p) {
+    return p->_decoded_length;
+}
+
 XED_DLL_EXPORT void
 xed_decoded_inst_zero_keep_mode_from_operands(
     xed_decoded_inst_t* p,

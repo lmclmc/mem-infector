@@ -278,11 +278,8 @@ xed_decoded_inst_zero_keep_mode_from_operands(
 //@{
 /// @ingroup DEC
 /// Return the length of the decoded  instruction in bytes.
-XED_INLINE xed_uint_t
-xed_decoded_inst_get_length(const xed_decoded_inst_t* p) {  
-    return p->_decoded_length;
-}
-
+xed_uint_t
+xed_decoded_inst_get_length(const xed_decoded_inst_t* p);
 //@}
 
 

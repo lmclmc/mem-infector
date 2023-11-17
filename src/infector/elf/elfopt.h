@@ -65,12 +65,6 @@ public:
 
     uint32_t getSectionSize(const std::string &, const std::string &);
 
-    Elf64Section::SymTab &getDynsymTab(const std::string &);
-
-    Elf64Section::GnuVerTab &getGnuVerTab(const std::string &);
-
-    Elf64Section::DynamicTab &getDynamicTab(const std::string &);
-
     bool flush(const std::string &, const std::string &);
 
     bool editTab(const std::string &, std::function<bool(Elf64Section::SymTab &)>);

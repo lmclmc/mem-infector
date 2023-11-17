@@ -322,6 +322,7 @@ bool Elf64SectionWrapper::flush(const std::string &output_soname)
     updateRelasym(mOutputFd, reladynAddr, dynsymTab, undefCount);
 
     close(mOutputFd);
+    return true;
 }
 
 Elf64SectionWrapper::SecTab &Elf64SectionWrapper::getSecTab()
@@ -541,45 +542,6 @@ bool Elf64Wrapper::flush(const std::string &soname,
     }
 
     return false;
-}
-
-Elf64Section::SymTab &Elf64Wrapper::getDynsymTab(const std::string &soname)
-{
-    auto pSecWrapper = mSecWrapperTab[soname];
-    if (pSecWrapper)
-    {
-        for (auto &s : pSecWrapper->getSecTab())
-        {
-            if (s.second)
-                return s.second->getSymTab();
-        }
-    }
-}
-
-Elf64Section::GnuVerTab &Elf64Wrapper::getGnuVerTab(const std::string &soname)
-{
-    auto pSecWrapper = mSecWrapperTab[soname];
-    if (pSecWrapper)
-    {
-        for (auto &s : pSecWrapper->getSecTab())
-        {
-            if (s.second)
-                return s.second->getGnuVerTab();
-        }
-    }
-}
-
-Elf64Section::DynamicTab &Elf64Wrapper::getDynamicTab(const std::string &soname)
-{
-    auto pSecWrapper = mSecWrapperTab[soname];
-    if (pSecWrapper)
-    {
-        for (auto &s : pSecWrapper->getSecTab())
-        {
-            if (s.second)
-                return s.second->getDynamicTab();
-        }
-    }
 }
 
 bool Elf64Wrapper::editTab(const std::string &soname, 
