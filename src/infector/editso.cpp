@@ -56,18 +56,27 @@ bool EditSo::replaceSoDynsym(const std::string &old_name,
         return false;
     }
   
-    pElf->editTab(input_soname, [&](std::list<Symbol> &symTab) -> bool {
+    if (!pElf->editTab(input_soname, [&](std::list<Symbol> &symTab) -> bool {
         for (auto &s : symTab) {
-            if (s.symbol_name.empty() || s.symbol_index == SHN_UNDEF)
-                continue;
-
             if (s.symbol_name == old_name)
+            {
                 s.symbol_name = new_name;
+                return true;
+            }
         }
 
-        return true;
-    });
+        return false;
+    }))
+    {
+        LOGGER_ERROR << old_name << " not found";
+        return false;
+    }
 
-    pElf->flush(input_soname, output_soname);
+    if (!pElf->flush(input_soname, output_soname))
+    {
+        LOGGER_ERROR << " flush " << " error";
+        return false;
+    }
+
     return true;
 }
