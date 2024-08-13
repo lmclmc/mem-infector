@@ -1,8 +1,14 @@
 cmake_minimum_required(VERSION 3.2)
 
-aux_source_directory(./ VIRUS_FILES)
+set(VIRUS_FILES ./virus.cpp)
+set(WECHAT_HOOK_FILES ./wechat_hook.cpp)
+
 
 add_executable(virus ${VIRUS_FILES})
+add_library(X SHARED ${WECHAT_HOOK_FILES})
+
+target_link_libraries(X lmcbase)
+target_link_libraries(X target)
 
 target_link_libraries(virus infector)
 target_link_libraries(virus target)
