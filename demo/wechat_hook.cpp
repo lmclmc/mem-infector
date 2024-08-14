@@ -8,6 +8,7 @@
 #include <sys/mman.h>
 #define WECHAT_OFFSET 0x96df27
 //#define WECHAT_OFFSET 0x96df0a
+
 void __attribute__((constructor)) wechat_hook_init(void) {
     printf("Dynamic library loaded: Running initialization.\n");
     lmc::Logger::setLevel(LogLevel::all);
@@ -109,49 +110,83 @@ static void wechat_hook_core(struct user_regs_struct *regs)
 {
     if (regs->r8 > 0x5016f3e7d290 && regs->r8 < 0x7ffffff7d290)
     {
-        LOGGER_INFO << (char *)regs->r8;
+        LOGGER_INFO << " r8  " << (char *)regs->r8;
     }
     if (regs->r9 > 0x5016f3e7d290 && regs->r9 < 0x7ffffff7d290)
     {
-        LOGGER_INFO << (char *)regs->r9;
+        LOGGER_INFO << " r9  " << (char *)regs->r9;
     }
     if (regs->r10 > 0x5016f3e7d290 && regs->r10 < 0x7ffffff7d290)
     {
-        LOGGER_INFO << (char *)regs->r10;
+        LOGGER_INFO << " r10  " << (char *)regs->r10;
     }
     if (regs->r11 > 0x5016f3e7d290 && regs->r11 < 0x7ffffff7d290)
     {
-        LOGGER_INFO << (char *)regs->r11;
+        LOGGER_INFO << " r11  " << (char *)regs->r11;
     }
     if (regs->r12 > 0x5016f3e7d290 && regs->r12 < 0x7ffffff7d290)
     {
-        LOGGER_INFO << (char *)regs->r12;
+        LOGGER_INFO << " r12  " << (char *)regs->r12;
     }
     if (regs->r13 > 0x5016f3e7d290 && regs->r13 < 0x7ffffff7d290)
     {
-        LOGGER_INFO << (char *)regs->r13;
+        LOGGER_INFO << " r13  " << (char *)regs->r13;
     }
     if (regs->rsi > 0x5016f3e7d290 && regs->rsi < 0x7ffffff7d290)
     {
-        LOGGER_INFO << (char *)regs->rsi;
+        LOGGER_INFO << " rsi  " << (char *)regs->rsi;
     }
     if (regs->rdi > 0x5016f3e7d290 && regs->rdi < 0x7ffffff7d290)
     {
-        LOGGER_INFO << (char *)regs->rdi;
+        LOGGER_INFO << " rdi  " << (char *)regs->rdi;
     }
-    if (regs->rsi > 0x5016f3e7d290 && regs->rsp < 0x7ffffff7d290)
+    if (regs->rsp > 0x5016f3e7d290 && regs->rsp < 0x7ffffff7d290)
     {
-        LOGGER_INFO << (char *)regs->rsp;
+        LOGGER_INFO << " rsp  " << (char *)regs->rsp;
     }
-    if (regs->rdi > 0x5016f3e7d290 && regs->rbp < 0x7ffffff7d290)
+    if (regs->rbp > 0x5016f3e7d290 && regs->rbp < 0x7ffffff7d290)
     {
-        LOGGER_INFO << (char *)regs->rbp;
+        LOGGER_INFO << " rbp  " << (char *)regs->rbp;
     }
 }
 
 static void wechat_hook_run()
 {
+    asm("push %rax;\n"
+        "push %rbx;\n"
+        "push %rcx;\n"
+        "push %rdx;\n"
+        "push %rsi;\n"
+        "push %rdi;\n"
+        "push %r8;\n"
+        "push %r9;\n"
+        "push %r10;\n"
+        "push %r11;\n"
+        "push %r12;\n"
+        "push %r13;\n"
+        "push %r14;\n"
+        "push %r15;\n"
+        "push %rbp;\n"
+        "push %rsp;\n"
+    );
     struct user_regs_struct regs = {0};
+    asm("pop %rsp;\n"
+        "pop %rbp;\n"
+        "pop %r15;\n"
+        "pop %r14;\n"
+        "pop %r13;\n"
+        "pop %r12;\n"
+        "pop %r11;\n"
+        "pop %r10;\n"
+        "pop %r9;\n"
+        "pop %r8;\n"
+        "pop %rdi;\n"
+        "pop %rsi;\n"
+        "pop %rdx;\n"
+        "pop %rcx;\n"
+        "pop %rbx;\n"
+        "pop %rax;\n"
+    );
     asm volatile (
         "mov %%rbx, %0\n"
         "mov %%rcx, %1\n"
@@ -190,13 +225,11 @@ static void wechat_hook_run()
         "mov %10, %%r13\n"
         "mov %11, %%r14\n"
         "mov %12, %%r15\n"
-        "mov %13, %%rbp\n"
-        "mov %14, %%rsp\n"
         :
         : "m"(regs.rbx), "m"(regs.rcx), "m"(regs.rdx),
           "m"(regs.rsi), "m"(regs.rdi), "m"(regs.r8), 
           "m"(regs.r9), "m"(regs.r10), "m"(regs.r11),
-          "m"(regs.r12), "m"(regs.r13), "m"(regs.r14), "m"(regs.r15),"m"(regs.rbp), "m"(regs.rsp)
+          "m"(regs.r12), "m"(regs.r13), "m"(regs.r14), "m"(regs.r15)
         : "memory"
     );
 }
@@ -220,6 +253,7 @@ void wechat_hook()
         "nop;\n"
         "nop;\n"
     );
+   
    // printf("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
     wechat_hook_run();
     asm("nop;\n"
