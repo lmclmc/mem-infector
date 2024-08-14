@@ -108,92 +108,92 @@ void __attribute__((constructor)) wechat_hook_init(void) {
 
 static void wechat_hook_core(struct user_regs_struct *regs)
 {
-    if (regs->r8 > 0x5016f3e7d290 && regs->r8 < 0x7ffffff7d290)
+    if (regs->r8 > 0x5016f3e7d290 && regs->r8 < 0x7fffffffffff)
     {
-        LOGGER_INFO << " r8  " << (char *)regs->r8;
+        LOGGER_INFO << " r8  " << LogFormat::addr << regs->r8 << "  " << (char *)regs->r8;
     }
-    if (regs->r9 > 0x5016f3e7d290 && regs->r9 < 0x7ffffff7d290)
+    if (regs->r9 > 0x5016f3e7d290 && regs->r9 < 0x7fffffffffff)
     {
-        LOGGER_INFO << " r9  " << (char *)regs->r9;
+        LOGGER_INFO << " r9  " << LogFormat::addr << regs->r9 << "  " << (char *)regs->r9;
     }
-    if (regs->r10 > 0x5016f3e7d290 && regs->r10 < 0x7ffffff7d290)
+    if (regs->r10 > 0x5016f3e7d290 && regs->r10 < 0x7fffffffffff)
     {
-        LOGGER_INFO << " r10  " << (char *)regs->r10;
+        LOGGER_INFO << " r10  " << LogFormat::addr << regs->r10 << "  " << (char *)regs->r10;
     }
-    if (regs->r11 > 0x5016f3e7d290 && regs->r11 < 0x7ffffff7d290)
+    if (regs->r11 > 0x5016f3e7d290 && regs->r11 < 0x7fffffffffff)
     {
-        LOGGER_INFO << " r11  " << (char *)regs->r11;
+        LOGGER_INFO << " r11  " << LogFormat::addr << regs->r11 << "  " << (char *)regs->r11;
     }
-    if (regs->r12 > 0x5016f3e7d290 && regs->r12 < 0x7ffffff7d290)
+    if (regs->r12 > 0x5016f3e7d290 && regs->r12 < 0x7fffffffffff)
     {
-        LOGGER_INFO << " r12  " << (char *)regs->r12;
+        LOGGER_INFO << " r12  " << LogFormat::addr << regs->r12 << "  " << (char *)regs->r12;
     }
-    if (regs->r13 > 0x5016f3e7d290 && regs->r13 < 0x7ffffff7d290)
+    if (regs->r13 > 0x5016f3e7d290 && regs->r13 < 0x7fffffffffff)
     {
-        LOGGER_INFO << " r13  " << (char *)regs->r13;
+        LOGGER_INFO << " r13  " << LogFormat::addr << regs->r13 << "  " << (char *)regs->r13;
     }
-    if (regs->rsi > 0x5016f3e7d290 && regs->rsi < 0x7ffffff7d290)
+    if (regs->rsi > 0x5016f3e7d290 && regs->rsi < 0x7fffffffffff)
     {
-        LOGGER_INFO << " rsi  " << (char *)regs->rsi;
+        LOGGER_INFO << " rsi  " << LogFormat::addr << regs->rsi << "  " << (char *)regs->rsi;
     }
-    if (regs->rdi > 0x5016f3e7d290 && regs->rdi < 0x7ffffff7d290)
+    if (regs->rdi > 0x5016f3e7d290 && regs->rdi < 0x7fffffffffff)
     {
-        LOGGER_INFO << " rdi  " << (char *)regs->rdi;
+        LOGGER_INFO << " rdi  " << LogFormat::addr << regs->rdi << "  " << (char *)regs->rdi;
     }
-    if (regs->rsp > 0x5016f3e7d290 && regs->rsp < 0x7ffffff7d290)
+    if (regs->rsp > 0x5016f3e7d290 && regs->rsp < 0x7fffffffffff)
     {
-        LOGGER_INFO << " rsp  " << (char *)regs->rsp;
+        LOGGER_INFO << " rsp  " << LogFormat::addr << regs->rsp << "  " << (char *)regs->rsp;
     }
-    if (regs->rbp > 0x5016f3e7d290 && regs->rbp < 0x7ffffff7d290)
+    if (regs->rbp > 0x5016f3e7d290 && regs->rbp < 0x7fffffffffff)
     {
-        LOGGER_INFO << " rbp  " << (char *)regs->rbp;
+        LOGGER_INFO << " rbp  " << LogFormat::addr << regs->rbp << "  " << (char *)regs->rbp;
     }
 }
 
 static void wechat_hook_run()
 {
-    asm("push %rax;\n"
-        "push %rbx;\n"
-        "push %rcx;\n"
-        "push %rdx;\n"
-        "push %rsi;\n"
-        "push %rdi;\n"
-        "push %r8;\n"
-        "push %r9;\n"
-        "push %r10;\n"
-        "push %r11;\n"
-        "push %r12;\n"
-        "push %r13;\n"
-        "push %r14;\n"
-        "push %r15;\n"
-        "push %rbp;\n"
-        "push %rsp;\n"
-    );
+    // asm("push %rax;\n"
+    //     "push %rbx;\n"
+    //     "push %rcx;\n"
+    //     "push %rdx;\n"
+    //     "push %rsi;\n"
+    //     "push %rdi;\n"
+    //     "push %r8;\n"
+    //     "push %r9;\n"
+    //     "push %r10;\n"
+    //     "push %r11;\n"
+    //     "push %r12;\n"
+    //     "push %r13;\n"
+    //     "push %r14;\n"
+    //     "push %r15;\n"
+    //     "push %rbp;\n"
+    //     "push %rsp;\n"
+    // );
     struct user_regs_struct regs = {0};
-    asm("pop %rsp;\n"
-        "pop %rbp;\n"
-        "pop %r15;\n"
-        "pop %r14;\n"
-        "pop %r13;\n"
-        "pop %r12;\n"
-        "pop %r11;\n"
-        "pop %r10;\n"
-        "pop %r9;\n"
-        "pop %r8;\n"
-        "pop %rdi;\n"
-        "pop %rsi;\n"
-        "pop %rdx;\n"
-        "pop %rcx;\n"
-        "pop %rbx;\n"
-        "pop %rax;\n"
-    );
+    // asm("pop %rsp;\n"
+    //     "pop %rbp;\n"
+    //     "pop %r15;\n"
+    //     "pop %r14;\n"
+    //     "pop %r13;\n"
+    //     "pop %r12;\n"
+    //     "pop %r11;\n"
+    //     "pop %r10;\n"
+    //     "pop %r9;\n"
+    //     "pop %r8;\n"
+    //     "pop %rdi;\n"
+    //     "pop %rsi;\n"
+    //     "pop %rdx;\n"
+    //     "pop %rcx;\n"
+    //     "pop %rbx;\n"
+    //     "pop %rax;\n"
+    // );
     asm volatile (
         "mov %%rbx, %0\n"
         "mov %%rcx, %1\n"
         "mov %%rdx, %2\n"
         "mov %%rsi, %3\n"
         "mov %%rdi, %4\n"
-        "mov %%rbp, %5\n"
+        "mov %%r14, %5\n"
         "mov %%rsp, %6\n"
         "mov %%r8, %7\n"
         "mov %%r9, %8\n"
@@ -252,6 +252,7 @@ void wechat_hook()
         "nop;\n"
         "nop;\n"
         "nop;\n"
+        "mov %rbp,%r14;\n"
     );
    
    // printf("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
