@@ -89,6 +89,18 @@ void Infector::regvecInit()
     };
 }
 
+bool Infector::search_str(std::string &)
+{
+    if (!pTargetOpt->readTargetAllMaps())
+        return false;
+    
+    auto &map = pTargetOpt->getMapInfo();
+    for (auto &m : map)
+    {
+        LOGGER_INFO << m.first << " :: " << LogFormat::addr << m.second.start_addr << " :: " << m.second.end_addr;
+    }
+}
+
 bool Infector::backupTarget()
 {
     if (!pTargetOpt->readTarget(*pOrigRegs))
@@ -249,7 +261,7 @@ bool Infector::loadSoFile(const std::string &soname, bool update)
         if (strstr(m.first.c_str(), soname.c_str()))
         {
             soAllPath = m.first;
-            baseAddr = m.second;
+            baseAddr = m.second.start_addr;
             break;
         }
     }

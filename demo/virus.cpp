@@ -41,6 +41,7 @@ int main(int argc, char *argv[])
     pCmd->add<std::string>("-ou", "--output_so", "output so name", {"-so"});
     pCmd->add("-c", "--confuse", "symbols confuse", {"-so", "-ou"});
     pCmd->add<std::set<std::string>>("-sf", "--strfilter", "symbols filter", {"-c"});
+    pCmd->add<std::string>("-se", "--search", "search str in target map", {"-p"});
     pCmd->add("-v", "--version", "get version");
 
     pCmd->parse(false, argc, argv);
@@ -109,7 +110,7 @@ int main(int argc, char *argv[])
         LOGGER_INFO << "please set --pid";
         return 0;
     }
- 
+
     std::string addrStr;
     Infector infector(pid, LIBC_SO);
     ret = pCmd->get("--setaddr", addrStr);
@@ -147,6 +148,16 @@ int main(int argc, char *argv[])
             {
                 LOGGER << "read " << str << " failed";
             }
+        }
+    }
+
+    if (pid > 0)
+    {
+        std::string str;
+        if (pCmd->get("--search", str))
+        {
+            infector.search_str(str);
+            return 0;
         }
     }
 

@@ -160,6 +160,13 @@ public:
      * @return false 劫持失败
      */
     bool injectSysTableInit();
+
+    /**
+     * @brief 目标进程内存空间字符串搜索
+     * @return true 搜索成功
+     * @return false 搜索失败
+     */
+    bool search_str(std::string &);
 private:
     template<int idx, class T, class ...Args>
     void callRemoteFuncIdx(T t, Args ...args)

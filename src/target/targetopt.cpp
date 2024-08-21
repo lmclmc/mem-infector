@@ -139,6 +139,11 @@ bool TargetOpt::writeTarget(struct user_regs_struct &regs)
     return true;
 }
 
+bool TargetOpt::searchStrInTarget(std::string &)
+{
+
+}
+
 bool TargetOpt::contTarget()
 {
     if (ptrace(PTRACE_CONT, pid, NULL, NULL) < 0)
@@ -195,7 +200,7 @@ TargetMaps::TargetMaps(int pid_) :
     pid(pid_)
 {}
 
-std::map<std::string, uint64_t> &TargetMaps::getMapInfo()
+std::map<std::string, TargetMaps::ELFADDR_START_END> &TargetMaps::getMapInfo()
 {
     return mapInfos;
 }
@@ -216,6 +221,7 @@ bool TargetMaps::readTargetAllMaps()
     int i, size;
     std::string soAbsPath;
     Elf64_Addr baseAddr;
+    Elf64_Addr end_baseAddr;
     
     snprintf(mapsPath, sizeof(mapsPath), "/proc/%d/maps", pid);
     FILE *fp;
@@ -224,15 +230,22 @@ bool TargetMaps::readTargetAllMaps()
         LOGGER_ERROR << "fopen: " << strerror(errno);
         return false;
     }
-
+    char tmp_buffer[32];
     while (fgets(line, sizeof(line), fp)) 
     {
         soAbsPath = "";
-
+        memset(tmp, 0, sizeof(tmp));
         for (i = 0, start = tmp, p = line; *p != '-'; i++, p++)
             start[i] = *p;
+        unsigned int byte_sum = strlen(start);
+        memset(tmp_buffer, 0, sizeof(tmp_buffer));
+        for (i = 0; byte_sum <= 12 && i < 12 - byte_sum; i++)
+        {
+                tmp_buffer[i] = '0';
+        }
+        strcat(tmp_buffer, start);
+        memcpy(start, tmp_buffer, strlen(tmp_buffer));
 
-        start[i] = '\0';
         unsigned long long a1 = strtoull(start+4, NULL, 16);
         a1 &= 0xffffffff;
         start[4] = 0x0;
@@ -240,15 +253,24 @@ bool TargetMaps::readTargetAllMaps()
         baseAddr = (a2 << 32) + a1;
 
         p++;
+        memset(tmp, 0, sizeof(tmp));
         for (i = 0, start = tmp; *p != ' '; i++, p++)
             start[i] = *p;
 
-        start[i] = '\0';
+        byte_sum = strlen(start);
+        memset(tmp_buffer, 0, sizeof(tmp_buffer));
+        for (i = 0; byte_sum <= 12 && i < 12 - byte_sum; i++)
+        {
+            tmp_buffer[i] = '0';
+        }
+        strcat(tmp_buffer, start);
+        memcpy(start, tmp_buffer, strlen(tmp_buffer));
+ 
         a1 = strtoull(start+4, NULL, 16);
         a1 &= 0xffffffff;
         start[4] = 0x0;
         a2 = strtoull(start, NULL, 16);
-        size =  (a2 << 32) + a1 - baseAddr;
+        end_baseAddr =  (a2 << 32) + a1;
 
         if (p = strchr(line, '/'))
         {
@@ -261,10 +283,16 @@ bool TargetMaps::readTargetAllMaps()
             soAbsPath = p;
         } 
         
+        ELFADDR_START_END start_end_addr;
+        start_end_addr.start_addr = baseAddr;
+        start_end_addr.end_addr = end_baseAddr;
+
         if (mapInfos.find(soAbsPath) != mapInfos.end())
-            continue;
-            
-        mapInfos.insert({soAbsPath, baseAddr});
+        {
+            soAbsPath = std::to_string(start_end_addr.start_addr);
+        }
+
+        mapInfos.insert({soAbsPath, start_end_addr});
     }
 
     fclose(fp);

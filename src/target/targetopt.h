@@ -7,17 +7,23 @@
 
 class TargetMaps
 {
+    typedef struct ELFADDR_START_END
+    {
+        Elf64_Addr start_addr;
+        Elf64_Addr end_addr;
+    }ELFADDR_START_END;
+
 public:
     TargetMaps(int);
     virtual ~TargetMaps(){}
 
     void clearMapInfos();
     bool readTargetAllMaps();
-    std::map<std::string, Elf64_Addr> &getMapInfo();
+    std::map<std::string, ELFADDR_START_END> &getMapInfo();
 
 private:
     int pid;
-    std::map<std::string, Elf64_Addr> mapInfos;
+    std::map<std::string, ELFADDR_START_END> mapInfos;
 };
 
 class TargetOpt : public TargetMaps
@@ -40,6 +46,8 @@ public:
     bool contTarget();
 
     bool stepTarget();
+
+    bool searchStrInTarget(std::string &);
 
 private:
     int pid;
