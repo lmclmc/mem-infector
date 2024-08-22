@@ -47,8 +47,8 @@ public:
 
     bool stepTarget();
 
-    bool searchStrInTarget(std::string &);
-
+    std::map<Elf64_Addr, std::string> searchStrInTarget(std::string &);
+    
 private:
     int pid;
 

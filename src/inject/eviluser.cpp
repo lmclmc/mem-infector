@@ -153,6 +153,7 @@ ssize_t EvilUser::evilWrite(int fd, const void *buf, size_t count)
     if (fd == 1 || fd == 2)
     {
         echo_printf((const char *)buf, count);
+
        // echo_printf("\n", 1);
     }
     // if (!tmpBuffer)

@@ -163,10 +163,9 @@ public:
 
     /**
      * @brief 目标进程内存空间字符串搜索
-     * @return true 搜索成功
-     * @return false 搜索失败
+     * @return 返回目标字符串的所有地址
      */
-    bool search_str(std::string &);
+    std::map<Elf64_Addr, std::string> searchStr(std::string &);
 private:
     template<int idx, class T, class ...Args>
     void callRemoteFuncIdx(T t, Args ...args)

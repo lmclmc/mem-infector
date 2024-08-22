@@ -156,7 +156,12 @@ int main(int argc, char *argv[])
         std::string str;
         if (pCmd->get("--search", str))
         {
-            infector.search_str(str);
+            LOGGER_INFO << str;
+            auto map = infector.searchStr(str);
+            for (auto &m : map)
+            {
+                LOGGER_INFO << LogFormat::addr << m.first << "  ::   " << m.second << LogFormat::num;
+            }
             return 0;
         }
     }

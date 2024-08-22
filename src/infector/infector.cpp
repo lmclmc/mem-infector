@@ -89,16 +89,9 @@ void Infector::regvecInit()
     };
 }
 
-bool Infector::search_str(std::string &)
+std::map<Elf64_Addr, std::string> Infector::searchStr(std::string &str)
 {
-    if (!pTargetOpt->readTargetAllMaps())
-        return false;
-    
-    auto &map = pTargetOpt->getMapInfo();
-    for (auto &m : map)
-    {
-        LOGGER_INFO << m.first << " :: " << LogFormat::addr << m.second.start_addr << " :: " << m.second.end_addr;
-    }
+    return pTargetOpt->searchStrInTarget(str);
 }
 
 bool Infector::backupTarget()

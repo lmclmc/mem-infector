@@ -7,6 +7,11 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <set>
+#include <utility>
 
 #define MAPS_PATH_LEN 64
 #define LINE_LEN 512
@@ -139,9 +144,54 @@ bool TargetOpt::writeTarget(struct user_regs_struct &regs)
     return true;
 }
 
-bool TargetOpt::searchStrInTarget(std::string &)
+static bool search_target_memory(Elf64_Addr startAddr, Elf64_Addr endAddr, std::string &str, 
+                                 int pid, std::set<Elf64_Addr> &set)
 {
+    int fd;
+    unsigned char *pMmap;
+    struct stat st;
+    set.clear();
+    std::string mem_file_name = std::string("/proc/") + std::to_string(pid) + "/mem";
 
+    if ((fd = open(mem_file_name.c_str(), O_RDONLY)) < 0) 
+    {
+        LOGGER_ERROR << "open: " << mem_file_name << strerror(errno);
+        return false;
+    }
+
+    unsigned char *buffer = (unsigned char *)malloc(endAddr - startAddr);
+    lseek(fd, startAddr, SEEK_SET);
+    read(fd, buffer, endAddr - startAddr);
+    
+    for (size_t i = 0; i <= endAddr - startAddr; i++) {
+        if (strncmp((char *)&buffer[i], str.c_str(), str.length()) == 0) {
+            set.insert((Elf64_Addr)&buffer[i]);
+        }
+    }
+    return true;
+}
+
+std::map<Elf64_Addr, std::string> TargetOpt::searchStrInTarget(std::string &str)
+{
+    if (!readTargetAllMaps())
+        return std::map<Elf64_Addr, std::string>();
+    
+    auto &map = getMapInfo();
+    std::map<Elf64_Addr, std::string> strMap;
+    std::set<Elf64_Addr> set;
+    for (auto &m : map)
+    {
+        if (search_target_memory(m.second.start_addr, m.second.end_addr, str, pid, set))
+        {
+            for (auto s : set)
+            {
+                strMap.insert(std::make_pair<Elf64_Addr, std::string>((Elf64_Addr)s, (std::string)str));
+
+            }
+        }
+    }
+
+    return strMap;
 }
 
 bool TargetOpt::contTarget()
@@ -233,6 +283,11 @@ bool TargetMaps::readTargetAllMaps()
     char tmp_buffer[32];
     while (fgets(line, sizeof(line), fp)) 
     {
+        if (strstr(line, "---p"))
+            continue;
+        if (strstr(line, "--xp"))
+            continue;
+
         soAbsPath = "";
         memset(tmp, 0, sizeof(tmp));
         for (i = 0, start = tmp, p = line; *p != '-'; i++, p++)
