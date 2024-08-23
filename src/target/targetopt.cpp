@@ -165,7 +165,7 @@ static bool search_target_memory(Elf64_Addr startAddr, Elf64_Addr endAddr, std::
     
     for (size_t i = 0; i <= endAddr - startAddr; i++) {
         if (strncmp((char *)&buffer[i], str.c_str(), str.length()) == 0) {
-            set.insert((Elf64_Addr)&buffer[i]);
+            set.insert(startAddr + i);
         }
     }
     return true;
