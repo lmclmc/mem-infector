@@ -21,6 +21,10 @@ Copyright (c) 2021 Intel Corporation
   
 END_LEGAL */
 #include "xed-internal-header.h"
+
+xed_uint_t xed_encode_order_limit[XED_ENCODE_ORDER_MAX_ENTRIES];
+xed_uint8_t xed_encode_order[XED_ENCODE_ORDER_MAX_ENTRIES][XED_ENCODE_ORDER_MAX_OPERANDS];
+
 void xed_init_encoder_order(void)
 {
 xed_encode_order[0][0]=XED_OPERAND_REG0;

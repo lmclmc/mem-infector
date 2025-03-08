@@ -69,7 +69,7 @@ extern const xed_uint32_t xed_iform_max_per_iclass_table[XED_ICLASS_LAST];
 
 /**************************************************************************/
 #undef XED_GLOBAL_EXTERN
-#define XED_GLOBAL_EXTERN
+#define XED_GLOBAL_EXTERN extern
 
 /* more miscellaneous stuff */
 

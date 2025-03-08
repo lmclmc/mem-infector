@@ -20,7 +20,7 @@ END_LEGAL */
 # define XED_ENCODE_TABLES_H
 
 #undef XED_GLOBAL_EXTERN
-#define XED_GLOBAL_EXTERN
+#define XED_GLOBAL_EXTERN extern
 
 // Some things are "extern const" because they are filled in where they are
 // declared in some generated *.c file.

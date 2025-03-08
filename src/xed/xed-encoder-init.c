@@ -22,6 +22,10 @@ Copyright (c) 2021 Intel Corporation
 END_LEGAL */
 #include "xed-internal-header.h"
 #include "xed-encoder.h"
+
+xed_uint8_t xed_enc_iclass2index_in_group[XED_ICLASS_LAST];
+xed_uint16_t xed_enc_iclass2group[XED_ICLASS_LAST];
+
 void xed_init_encode_table(void)
 {
     xed_enc_iclass2group[XED_ICLASS_FADD] = 0;

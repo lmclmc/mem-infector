@@ -21,6 +21,9 @@ Copyright (c) 2021 Intel Corporation
   
 END_LEGAL */
 #include "xed-internal-header.h"
+
+xed_uint16_t xed_width_bits[XED_OPERAND_WIDTH_LAST][4];
+
 void xed_init_width_mappings(void)
 {
    xed_width_bits[XED_OPERAND_WIDTH_INVALID][0] = 0;

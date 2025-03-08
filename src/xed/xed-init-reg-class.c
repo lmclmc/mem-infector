@@ -21,6 +21,13 @@ Copyright (c) 2021 Intel Corporation
   
 END_LEGAL */
 #include "xed-internal-header.h"
+
+xed_uint_t xed_reg_width_bits[XED_REG_LAST][2];
+xed_reg_enum_t xed_largest_enclosing_register_array[XED_REG_LAST];
+xed_reg_enum_t xed_largest_enclosing_register_array_32[XED_REG_LAST];
+xed_reg_class_enum_t xed_gpr_reg_class_array[XED_REG_LAST];
+xed_reg_class_enum_t xed_reg_class_array[XED_REG_LAST];
+
 void xed_init_reg_mappings(void)
 {
    xed_reg_class_array[XED_REG_INVALID]= XED_REG_CLASS_INVALID;
