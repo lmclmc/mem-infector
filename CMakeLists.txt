@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 
-project(infector VERSION 1.4.0)
+project(infector VERSION 1.5.0)
 
 include_directories(src/)
 include_directories(build/)
