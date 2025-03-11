@@ -40,8 +40,8 @@ Elf64SectionWrapper::~Elf64SectionWrapper()
     if (!(pMmap && munmap(pMmap, mSt.st_size) >= 0))
         LOGGER_ERROR << strerror(errno);
 
-    if (!(mFd > 0 && close(mFd) > 0))
-        LOGGER_ERROR << strerror(errno);
+    if (mFd > 0)
+        close(mFd);
 }
 
 uint32_t Elf64SectionWrapper::elfHash(const char* name)
@@ -411,7 +411,7 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
     WorkQueue *work = TypeSingle<WorkQueue>::getInstance(MutexType::None);
     std::future<bool> dynsymFuture;
     std::future<bool> reladynFuture;
-    std::future<bool> gnuversoinFuture;
+    std::future<bool> gnuversionFuture;
     std::future<bool> dynamicFuture;
 
     std::promise<uint64_t> dynstrPromise;
@@ -424,6 +424,7 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
     for (int i = 0; i < shnum; ++i) 
     {
         Section section;
+        section.soname_size = st.st_size;
         section.section_index = i;
         section.section_name = std::string(pStrtab + sHdr[i].sh_name);
         section.section_type = sHdr[i].sh_type;
@@ -471,7 +472,7 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
             relapltPromise.set_value(section.section_size);
         } else if (section.section_name == SECTION_GNUVERSION_STR)
         {
-            gnuversoinFuture = work->addTask([&](uint8_t *pMap, 
+            gnuversionFuture = work->addTask([&](uint8_t *pMap, 
                                                  Section &section, 
                                                  Elf64_Addr baseAddr){
                 uint64_t offset = dynstrFuture.get();
@@ -502,10 +503,14 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
                                                      baseAddr);
     }
 
-    dynamicFuture.get();
-    dynsymFuture.get();
-    reladynFuture.get();
-    gnuversoinFuture.get();
+    if (dynamicFuture.valid())
+        dynamicFuture.get();
+    if (dynsymFuture.valid())
+        dynsymFuture.get();
+    if (reladynFuture.valid())
+        reladynFuture.get();
+    if (gnuversionFuture.valid())
+        gnuversionFuture.get();
 
     return true;
 }

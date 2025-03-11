@@ -13,6 +13,7 @@ typedef struct {
     std::string section_name;
     int section_type; 
     int section_size, section_ent_size, section_addr_align;
+    long int soname_size;
 } Section;
 
 typedef struct {

@@ -14,6 +14,8 @@ void Elf64DynamicSection::pushSectionS(uint8_t *pMmap,
         dynamic.dyn.d_tag = dynamic_data[i].d_tag;
         dynamic.dyn.d_un.d_ptr = dynamic_data[i].d_un.d_ptr;
         dynamic.offset = dynamic_data[i].d_un.d_ptr;
+        if (dynamic.offset >= section.soname_size)
+            continue;
         dynamic.name = std::string(dynamic.offset + pDynStr);
         dynamic.flag = 0;
         dynamicTab.emplace_back(dynamic);
