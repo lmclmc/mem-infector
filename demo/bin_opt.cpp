@@ -22,7 +22,9 @@ int main(int argc, char *argv[])
 {
     CmdLine *pCmd = TypeSingle<CmdLine>::getInstance();
     pCmd->add<int>("-p", "--pid", "set target pid", {}, {1, 1000000});
-    pCmd->add<std::list<std::string>>("-l", "--link", "link so", {"--pid"});
+#ifdef __x86_64__
+    pCmd->add<std::list<std::string>>("-l", "--link", "link so (only support x86_64)", {"--pid"});
+#endif
     pCmd->add<std::string>("-ga", "--getfunaddr", 
                            "get target process function addr", {"--pid"});
     pCmd->add<std::string>("-sl", "--setloglevel", "set log level", {},
@@ -34,7 +36,9 @@ int main(int argc, char *argv[])
                           {"--pid", "--setaddr"});
     pCmd->add<int>("-r", "--read", "read str from target mem", 
                   {"--pid", "--setaddr"});
-    pCmd->add("-ho", "--hook", "hook syscall", {"--pid", "--link"});
+#ifdef __x86_64__
+    pCmd->add("-ho", "--hook", "hook syscall (only support x86_64)", {"--pid", "--link"});
+#endif
     pCmd->add<std::string>("-od", "--old_dynsymstr", "input old dynsym name");
     pCmd->add<std::string>("-nd", "--new_dynsymstr", "input new dynsym name", {"-od"});
     pCmd->add<std::string>("-so", "--soname", "input so name");
@@ -175,6 +179,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+#ifdef __x86_64__
     std::list<std::string> linkList;
     ret = pCmd->get("--link", linkList);
     if (ret && linkList.size())
@@ -190,13 +195,13 @@ int main(int argc, char *argv[])
             infector.injectEvilSoname(l);
         }
     }
-    
+
     ret = pCmd->get("--hook");
     if (ret)
     {
         infector.injectSysTableInit();
     }
-
+#endif
     if (!infector.detachTarget())
     {
         return 0;
