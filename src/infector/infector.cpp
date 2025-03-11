@@ -54,6 +54,7 @@ Infector::~Infector()
     Elf64Wrapper *pElf = TypeSingle<Elf64Wrapper>::getInstance();
     pElf->clearAllSyms();
     free(xedd);
+    TypeSingle<Elf64Wrapper>::destory();
 }
 
 void Infector::regvecInit()

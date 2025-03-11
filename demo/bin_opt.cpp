@@ -18,9 +18,9 @@
 
 using namespace lmc;
 
-int main(int argc, char *argv[])
+int bin_opt(CmdLine *pCmd, int argc, char *argv[])
 {
-    CmdLine *pCmd = TypeSingle<CmdLine>::getInstance();
+    
     pCmd->add<int>("-p", "--pid", "set target pid", {}, {1, 1000000});
 #ifdef __x86_64__
     pCmd->add<std::list<std::string>>("-l", "--link", "link so (only support x86_64)", {"--pid"});
@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
     if (ret)
     {
         std::cout << "version: " << PROJECT_VERSION << std::endl;
-        exit(0);
+        return 0;
     }
     
     Logger::setLevel(LogLevel::all);
@@ -206,4 +206,21 @@ int main(int argc, char *argv[])
     {
         return 0;
     }
+    return 0;
+}
+
+int main(int argc, char *argv[])
+{
+    CmdLine *pCmd = TypeSingle<CmdLine>::getInstance();
+    int ret = 0;
+    try
+    {
+        ret = bin_opt(pCmd, argc, argv);
+    }
+    catch(const std::exception& e)
+    {
+        //std::cerr << e.what() << '\n';
+    }
+    TypeSingle<CmdLine>::destory();
+    return ret;
 }

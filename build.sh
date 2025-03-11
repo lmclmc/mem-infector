@@ -5,6 +5,7 @@ git submodule update
 
 pushd base
     git pull origin master
+    git checkout master
 popd
 
 CURRENT_DIR=$(pwd)
