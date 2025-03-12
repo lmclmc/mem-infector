@@ -495,6 +495,7 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
                                                              offset);
                 return true;
             }, pMmap, section, baseAddr);
+            
             continue;
         }
 
@@ -503,12 +504,23 @@ bool Elf64Wrapper::loadSo(const std::string &soname, Elf64_Addr baseAddr)
                                                      baseAddr);
     }
 
+    //对于部分elf文件来说，有可能没有节信息.dynstr，或者.rela.plt,针对这个问题需要自定义数据
+    if (dynstrFuture.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+        dynstrPromise.set_value(0);
+
+    if (relapltFuture.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+        relapltPromise.set_value(0);
+
+    //对于部分elf文件来说，有可能没有节信息 .dynamic .dynsym .rela.dyn .gnu.version_r，所以需要做此判断，不然会阻塞
     if (dynamicFuture.valid())
         dynamicFuture.get();
+    
     if (dynsymFuture.valid())
         dynsymFuture.get();
+
     if (reladynFuture.valid())
         reladynFuture.get();
+
     if (gnuversionFuture.valid())
         gnuversionFuture.get();
 
