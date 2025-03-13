@@ -161,8 +161,12 @@ static bool search_target_memory(Elf64_Addr startAddr, Elf64_Addr endAddr, std::
 
     unsigned char *buffer = (unsigned char *)malloc(endAddr - startAddr);
     lseek(fd, startAddr, SEEK_SET);
-    read(fd, buffer, endAddr - startAddr);
-    
+    if (read(fd, buffer, endAddr - startAddr) == -1)
+    {
+        LOGGER_ERROR << "read: " << mem_file_name << strerror(errno);
+        return false;
+    }
+
     for (size_t i = 0; i <= endAddr - startAddr; i++) {
         if (strncmp((char *)&buffer[i], str.c_str(), str.length()) == 0) {
             set.insert(startAddr + i);

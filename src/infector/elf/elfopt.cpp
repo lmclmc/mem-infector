@@ -127,7 +127,11 @@ void Elf64SectionWrapper::writeGnuHash(int fd, GnuHashState *obj_state,
             pObj = (unsigned char*)obj_state->hash_val;
         }
 
-        write(fd, pObj++, 1);
+        if (write(fd, pObj++, 1) == -1)
+        {
+            LOGGER_ERROR << "write: " << strerror(errno);
+            return;
+        }
     }
 }
 
@@ -145,7 +149,11 @@ void Elf64SectionWrapper::writeDynsym(int fd, Elf64_Addr baseAddr,
         sym.st_size = d.symbol_size;
         sym.st_value = d.symbol_value;
         
-        write(fd, &sym, sizeof(Elf64_Sym));
+        if (write(fd, &sym, sizeof(Elf64_Sym)) == -1)
+        {
+            LOGGER_ERROR << "write: " << strerror(errno);
+            return;
+        }
     }
 }
 
@@ -156,8 +164,16 @@ void Elf64SectionWrapper::writeDynStr(int fd, Elf64_Addr baseAddr,
     for (auto &d : dynsymTab)
     {
         lseek(fd, baseAddr + d.symbol_name_addr, SEEK_SET);
-        write(fd, d.symbol_name.c_str(), d.symbol_name.size());
-        write(fd, "\0", 1);
+        if (write(fd, d.symbol_name.c_str(), d.symbol_name.size()) == -1)
+        {
+            LOGGER_ERROR << "write: " << strerror(errno);
+            return;
+        }
+        if (write(fd, "\0", 1) == -1)
+        {
+            LOGGER_ERROR << "write: " << strerror(errno);
+            return;
+        }
     }
 }
 
@@ -170,8 +186,18 @@ void Elf64SectionWrapper::writeDynamicAndGnuver(int fd, Elf64_Addr dynstrAddr,
     for (auto &g : gnuverTab)
     {
         lseek(fd, dynstrAddr + g.offset, SEEK_SET);
-        write(fd, g.name.c_str(), g.name.size());
-        write(fd, "\0", 1);
+        if (write(fd, g.name.c_str(), g.name.size()) == -1)
+        {
+            LOGGER_ERROR << "write: " << strerror(errno);
+            return;
+        }
+
+        if (write(fd, "\0", 1) == -1)
+        {
+            LOGGER_ERROR << "write: " << strerror(errno);
+            return;
+        }
+
         for (auto &d : dynamicTab)
         {
             if (d.dyn.d_tag == DT_NEEDED && g.name == d.name)
@@ -187,21 +213,38 @@ void Elf64SectionWrapper::writeDynamicAndGnuver(int fd, Elf64_Addr dynstrAddr,
         if ((d.dyn.d_tag == DT_NEEDED && !d.flag) || d.dyn.d_tag == DT_SONAME)
         {
             d.dyn.d_un.d_ptr = lseek(fd, 0, SEEK_CUR) - dynstrAddr;
-            write(fd, d.name.c_str(), d.name.size());
-            write(fd, "\0", 1);
+            if (write(fd, d.name.c_str(), d.name.size()) == -1)
+            {
+                LOGGER_ERROR << "write: " << strerror(errno);
+                return;
+            }
+
+            if (write(fd, "\0", 1) == -1)
+            {
+                LOGGER_ERROR << "write: " << strerror(errno);
+                return;
+            }
         }
     }
 
     lseek(fd, gnuverAddr, SEEK_SET);
     for (auto &g : gnuverTab)
     {
-        write(fd, &g.gnuver, sizeof(GnuVer::gnuver));
+        if (write(fd, &g.gnuver, sizeof(GnuVer::gnuver)) == -1)
+        {
+            LOGGER_ERROR << "write: " << strerror(errno);
+            return;
+        }
     }
 
     lseek(fd, dynamicAddr, SEEK_SET);
     for (auto &d : dynamicTab)
     {
-        write(fd, &d.dyn, sizeof(Elf64_Dyn));
+        if (write(fd, &d.dyn, sizeof(Elf64_Dyn)) == -1)
+        {
+            LOGGER_ERROR << "write: " << strerror(errno);
+            return;
+        }
     }
 }
 
@@ -216,7 +259,11 @@ void Elf64SectionWrapper::updateRelasym(int fd, uint64_t relaBaseOffset,
         {
             m.second.r_info =  (idx << 32) | (m.second.r_info & 0xffffffff);
             lseek(fd, relaBaseOffset + sizeof(Elf64_Rela) * m.first, SEEK_SET);
-            write(fd, &m.second, sizeof(Elf64_Rela));
+            if (write(fd, &m.second, sizeof(Elf64_Rela)) == -1)
+            {
+                LOGGER_ERROR << "write: " << strerror(errno);
+                return;
+            }
         }
 
         idx++;
@@ -231,13 +278,18 @@ bool Elf64SectionWrapper::editTab(std::function<bool(Elf64Section::SymTab &)> cb
 bool Elf64SectionWrapper::flush(const std::string &output_soname)
 {
     int mOutputFd = 0;
-    if ((mOutputFd = open(output_soname.c_str(), O_CREAT | O_RDWR)) < 0)
+    if ((mOutputFd = open(output_soname.c_str(), O_CREAT | O_RDWR, 0644)) < 0)
     {
         LOGGER_ERROR << "open: " << output_soname << strerror(errno);
         return false;
     }
 
-    write(mOutputFd, pMmap, mSt.st_size);
+    if (write(mOutputFd, pMmap, mSt.st_size) == -1)
+    {
+        LOGGER_ERROR << "write: " << output_soname << strerror(errno);
+        close(mOutputFd);
+        return false;
+    }
 
     std::list<Symbol> dynUndefSymTab;
     auto &dynsymTab = mSecTab.begin()->second->getSymTab();
@@ -308,7 +360,12 @@ bool Elf64SectionWrapper::flush(const std::string &output_soname)
     uint32_t dynstrSize = mSecTab[".dynstr"]->getSectionSize();
     unsigned char buffer[1024 * 1024] = {0};
     lseek(mOutputFd, dynstrAddr, SEEK_SET);
-    write(mOutputFd, buffer, dynstrSize);
+    if (write(mOutputFd, buffer, dynstrSize) == -1)
+    {
+        LOGGER_ERROR << "write: " << output_soname << strerror(errno);
+        close(mOutputFd);
+        return false;
+    }
 
     writeDynStr(mOutputFd, dynstrAddr, dynUndefSymTab);
     writeDynStr(mOutputFd, dynstrAddr, dynsymTab);

@@ -1,5 +1,14 @@
 #!/bin/bash
 
+BUILD_TYPE=${1}
+
+if [[ ${BUILD_TYPE} != "Debug" && ${BUILD_TYPE} != "Release" ]]; then
+    echo "usage:"
+    echo "  ./build.sh Debug"
+    echo "  ./build.sh Release"
+    exit 0
+fi
+
 git submodule init
 git submodule update
 
@@ -18,7 +27,7 @@ rm -rf ${BASE_BUILD_DIR}
 mkdir ${BASE_BUILD_DIR}
 pushd ${BASE_BUILD_DIR}
 
-cmake ${BASE_DIR} -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-std=gnu++11"\
+cmake ${BASE_DIR} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_CXX_FLAGS="-std=gnu++11"\
                   -DCMAKE_INCLUDE_PATH="${BASE_BUILD_DIR}"
 make -j${CPU_NUM}
 make install
@@ -28,7 +37,7 @@ rm -rf ${BUILD_DIR}
 mkdir ${BUILD_DIR}
 pushd ${BUILD_DIR}
 
-cmake ${CURRENT_DIR} -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-std=gnu++11"\
+cmake ${CURRENT_DIR} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_CXX_FLAGS="-std=gnu++11"\
                      -DCMAKE_INCLUDE_PATH="${BASE_BUILD_DIR}install/include/" \
                      -DCMAKE_LIBRARY_PATH="${BASE_BUILD_DIR}install/lib/"
 #-DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-std=c++11"
